@@ -1,0 +1,36 @@
+.dungeon-preview {
+    margin-top: 20px;
+  }
+  
+  .dungeon-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 40px); /* Adjust based on your grid size */
+    grid-gap: 5px;
+  }
+  
+  .grid-row {
+    display: flex;
+  }
+  
+  .grid-cell {
+    width: 40px;
+    height: 40px;
+    border: 1px solid #ddd;
+    background-color: #f4f4f4;
+    text-align: center;
+    line-height: 40px;
+    font-size: 12px;
+  }
+  
+  .grid-cell.room {
+    background-color: #a3d9a5;
+  }
+  
+  .grid-cell.trap {
+    background-color: #f4b6c2;
+  }
+  
+  .grid-cell.boss {
+    background-color: #fab005;
+  }
+  
