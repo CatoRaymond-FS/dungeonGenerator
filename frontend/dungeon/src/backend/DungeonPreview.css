@@ -1,36 +1,18 @@
 .dungeon-preview {
-    margin-top: 20px;
-  }
-  
-  .dungeon-grid {
-    display: grid;
-    grid-template-columns: repeat(10, 40px); /* Adjust based on your grid size */
-    grid-gap: 5px;
-  }
-  
-  .grid-row {
-    display: flex;
-  }
-  
-  .grid-cell {
-    width: 40px;
-    height: 40px;
-    border: 1px solid #ddd;
-    background-color: #f4f4f4;
-    text-align: center;
-    line-height: 40px;
-    font-size: 12px;
-  }
-  
-  .grid-cell.room {
-    background-color: #a3d9a5;
-  }
-  
-  .grid-cell.trap {
-    background-color: #f4b6c2;
-  }
-  
-  .grid-cell.boss {
-    background-color: #fab005;
-  }
-  
+  margin-top: 20px;
+  text-align: center;
+}
+
+.dungeon-preview h2 {
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: #ffffff;
+}
+
+.dungeon-preview canvas {
+  display: block;
+  margin: 0 auto;
+  border: 2px solid #ddd;
+  background-color: #2c2c2c;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
