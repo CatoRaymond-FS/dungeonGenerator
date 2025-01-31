@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import jsPDF from 'jspdf';
 
 function DungeonPreview({ dungeonData }) {
   const canvasRef = useRef(null);
@@ -38,7 +39,37 @@ function DungeonPreview({ dungeonData }) {
     });
   }, [dungeonData]);
 
-  return <canvas ref={canvasRef} style={{ border: '1px solid black', marginTop: '20px' }} />;
+  // Function to Export Canvas as PNG
+  const exportToPNG = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = 'dungeon.png';
+    link.click();
+  };
+
+  // Function to Export Canvas as PDF
+  const exportToPDF = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const image = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('landscape'); // Landscape mode
+    pdf.addImage(image, 'PNG', 10, 10, 280, 150); // Adjust size
+    pdf.save('dungeon.pdf');
+  };
+
+  return (
+    <div style={{ textAlign: 'center', marginTop: '20px' }}>
+      <canvas ref={canvasRef} style={{ border: '1px solid black' }} />
+      <div style={{ marginTop: '10px' }}>
+        <button onClick={exportToPNG} style={{ marginRight: '10px' }}>Export as PNG</button>
+        <button onClick={exportToPDF}>Export as PDF</button>
+      </div>
+    </div>
+  );
 }
 
 export default DungeonPreview;
