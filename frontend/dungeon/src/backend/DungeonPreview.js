@@ -1,75 +1,63 @@
 import React, { useEffect, useRef } from 'react';
-import jsPDF from 'jspdf';
+import * as THREE from 'three';
 
 function DungeonPreview({ dungeonData }) {
-  const canvasRef = useRef(null);
+  const mountRef = useRef(null);
 
   useEffect(() => {
     if (!dungeonData || dungeonData.length === 0) return;
 
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const cellSize = 40;
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth * 0.8, window.innerHeight * 0.8);
+    mountRef.current.appendChild(renderer.domElement);
 
-    canvas.width = dungeonData[0].length * cellSize;
-    canvas.height = dungeonData.length * cellSize;
+    // Lighting
+    const light = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(light);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 10, 5);
+    scene.add(directionalLight);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const cellSize = 4;
+    const geometry = new THREE.BoxGeometry(cellSize, cellSize, cellSize);
+    
+    // Colors for different dungeon elements
+    const materials = {
+      'R': new THREE.MeshStandardMaterial({ color: 0xa3d9a5 }), // Room
+      'T': new THREE.MeshStandardMaterial({ color: 0xf4b6c2 }), // Trap
+      'B': new THREE.MeshStandardMaterial({ color: 0xfab005 }), // Boss
+      'D': new THREE.MeshStandardMaterial({ color: 0x84c5f4 }), // Door
+      'H': new THREE.MeshStandardMaterial({ color: 0xc4c4c4 }), // Hallway
+      'default': new THREE.MeshStandardMaterial({ color: 0xf4f4f4 }) // Empty space
+    };
 
     dungeonData.forEach((row, y) => {
       row.forEach((cell, x) => {
-        if (cell === 'R') ctx.fillStyle = '#a3d9a5';
-        else if (cell === 'T') ctx.fillStyle = '#f4b6c2';
-        else if (cell === 'B') ctx.fillStyle = '#fab005';
-        else if (cell === 'D') ctx.fillStyle = '#84c5f4';
-        else if (cell === 'H') ctx.fillStyle = '#c4c4c4';
-        else ctx.fillStyle = '#f4f4f4';
-
-        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-        ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
-
-        ctx.fillStyle = '#000';
-        ctx.font = '10px Arial';
-        if (cell === 'R') ctx.fillText('Room', x * cellSize + 5, y * cellSize + 15);
-        if (cell === 'T') ctx.fillText('Trap', x * cellSize + 5, y * cellSize + 15);
-        if (cell === 'B') ctx.fillText('Boss', x * cellSize + 5, y * cellSize + 15);
-        if (cell === 'D') ctx.fillText('Door', x * cellSize + 5, y * cellSize + 15);
-        if (cell === 'H') ctx.fillText('Hallway', x * cellSize + 5, y * cellSize + 15);
+        const material = materials[cell] || materials['default'];
+        const cube = new THREE.Mesh(geometry, material);
+        cube.position.set(x * cellSize, 0, y * cellSize);
+        scene.add(cube);
       });
     });
+
+    camera.position.set(10, 15, 20);
+    camera.lookAt(new THREE.Vector3(10, 0, 10));
+
+    const animate = function () {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    return () => {
+      mountRef.current.removeChild(renderer.domElement);
+    };
   }, [dungeonData]);
 
-  // Function to Export Canvas as PNG
-  const exportToPNG = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const link = document.createElement('a');
-    link.href = canvas.toDataURL('image/png');
-    link.download = 'dungeon.png';
-    link.click();
-  };
-
-  // Function to Export Canvas as PDF
-  const exportToPDF = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const image = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('landscape'); // Landscape mode
-    pdf.addImage(image, 'PNG', 10, 10, 280, 150); // Adjust size
-    pdf.save('dungeon.pdf');
-  };
-
-  return (
-    <div style={{ textAlign: 'center', marginTop: '20px' }}>
-      <canvas ref={canvasRef} style={{ border: '1px solid black' }} />
-      <div style={{ marginTop: '10px' }}>
-        <button onClick={exportToPNG} style={{ marginRight: '10px' }}>Export as PNG</button>
-        <button onClick={exportToPDF}>Export as PDF</button>
-      </div>
-    </div>
-  );
+  return <div ref={mountRef} style={{ textAlign: 'center', marginTop: '20px' }} />;
 }
 
 export default DungeonPreview;
