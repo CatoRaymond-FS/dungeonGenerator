@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import DungeonPreview from './backend/DungeonPreview';
 
@@ -9,13 +9,40 @@ function App() {
   const [boss, setBoss] = useState('');
   const [dungeonData, setDungeonData] = useState([]);
 
+  // Load dungeon from local storage on app start
+  useEffect(() => {
+    const savedDungeon = localStorage.getItem('savedDungeon');
+    if (savedDungeon) {
+      setDungeonData(JSON.parse(savedDungeon));
+    }
+  }, []);
+
+  // Save dungeon to local storage
+  const saveDungeon = () => {
+    localStorage.setItem('savedDungeon', JSON.stringify(dungeonData));
+    alert('Dungeon saved successfully!');
+  };
+
+  // Load dungeon from local storage
+  const loadDungeon = () => {
+    const savedDungeon = localStorage.getItem('savedDungeon');
+    if (savedDungeon) {
+      setDungeonData(JSON.parse(savedDungeon));
+      alert('Dungeon loaded successfully!');
+    } else {
+      alert('No saved dungeon found.');
+    }
+  };
+
+  // Event Handlers for Form Inputs
   const handlePartyLevelChange = (e) => setPartyLevel(e.target.value);
   const handleRoomNumberChange = (e) => setRoomNumber(e.target.value);
   const handleTrapsChange = (e) => setTraps(e.target.value);
   const handleBossChange = (e) => setBoss(e.target.value);
 
+  // Function to Generate Dungeon
   const generateDungeon = () => {
-    const gridSize = 10; // Fixed grid size (10x10)
+    const gridSize = 10; // Fixed grid size
     const dungeon = Array.from({ length: gridSize }, () => Array(gridSize).fill(null));
     const roomCount = parseInt(roomNumber, 10) || 5;
     let roomsPlaced = 0;
@@ -44,6 +71,7 @@ function App() {
           }
         }
 
+        // Place a door randomly
         const placeDoor = () => {
           const side = Math.floor(Math.random() * 4);
           if (side === 0 && startY > 0) dungeon[startX][startY - 1] = 'D'; // Top
@@ -65,6 +93,7 @@ function App() {
       }
     }
 
+    // Connect doors with hallways
     const connectDoors = (dungeon) => {
       const doors = [];
       for (let x = 0; x < gridSize; x++) {
@@ -94,9 +123,15 @@ function App() {
     setDungeonData(dungeon);
   };
 
+  // Check if all fields are filled
+  const isFormValid = partyLevel && roomNumber && traps && boss;
+
+  // Form Submission Handler
   const handleSubmit = (e) => {
     e.preventDefault();
-    generateDungeon();
+    if (isFormValid) {
+      generateDungeon();
+    }
   };
 
   return (
@@ -122,8 +157,12 @@ function App() {
             <input type="radio" value="yes" checked={boss === 'yes'} onChange={handleBossChange} /> Yes
             <input type="radio" value="no" checked={boss === 'no'} onChange={handleBossChange} /> No
           </label>
-          <button type="submit">Generate Dungeon</button>
+          <button type="submit" disabled={!isFormValid}>Generate Dungeon</button>
         </form>
+        <div style={{ marginTop: '20px' }}>
+          <button onClick={saveDungeon} disabled={!dungeonData.length}>Save Dungeon</button>
+          <button onClick={loadDungeon} style={{ marginLeft: '10px' }}>Load Dungeon</button>
+        </div>
         <DungeonPreview dungeonData={dungeonData} />
       </header>
     </div>
