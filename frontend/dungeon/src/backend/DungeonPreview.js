@@ -1,12 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import React, { useEffect, useRef, useState } from "react";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
 function DungeonPreview() {
   const mountRef = useRef(null);
   const [dungeonData, setDungeonData] = useState([]);
+  const [savedDungeonId, setSavedDungeonId] = useState(null);
 
-  // Function to fetch AI-generated dungeon
+  // Fetch AI-generated dungeon
   const fetchDungeon = async () => {
     try {
       const response = await fetch("http://127.0.0.1:8000/generate_dungeon");
@@ -18,7 +19,36 @@ function DungeonPreview() {
     }
   };
 
-  // Fetch dungeon on load
+  // Save the generated dungeon to the backend
+  const saveDungeon = async () => {
+    try {
+      const response = await fetch("http://127.0.0.1:8000/save_dungeon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dungeon: dungeonData }),
+      });
+      const data = await response.json();
+      setSavedDungeonId(data.dungeon_id);
+      alert(`Dungeon saved with ID: ${data.dungeon_id}`);
+    } catch (error) {
+      console.error("Error saving dungeon:", error);
+    }
+  };
+
+  // Load a dungeon by ID
+  const loadDungeon = async () => {
+    const dungeonId = prompt("Enter Dungeon ID to Load:");
+    if (!dungeonId) return;
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/load_dungeon/${dungeonId}`);
+      if (!response.ok) throw new Error("Dungeon not found");
+      const data = await response.json();
+      setDungeonData(data.dungeon);
+    } catch (error) {
+      console.error("Error loading dungeon:", error);
+    }
+  };
+
   useEffect(() => {
     fetchDungeon();
   }, []);
@@ -60,21 +90,21 @@ function DungeonPreview() {
 
     // Materials for Different Dungeon Elements
     const materials = {
-      'R': new THREE.MeshStandardMaterial({ color: 0xa3d9a5 }), // Room
-      'T': new THREE.MeshStandardMaterial({ color: 0xf4b6c2 }), // Trap
-      'B': new THREE.MeshStandardMaterial({ color: 0xfab005 }), // Boss
-      'D': new THREE.MeshStandardMaterial({ color: 0x84c5f4 }), // Door
-      'H': new THREE.MeshStandardMaterial({ color: 0xc4c4c4 }), // Hallway
-      'W': new THREE.MeshStandardMaterial({ color: 0x222222 }), // Walls
-      'default': new THREE.MeshStandardMaterial({ color: 0xf4f4f4 }) // Empty space
+      "R": new THREE.MeshStandardMaterial({ color: 0xa3d9a5 }), // Room
+      "T": new THREE.MeshStandardMaterial({ color: 0xf4b6c2 }), // Trap
+      "B": new THREE.MeshStandardMaterial({ color: 0xfab005 }), // Boss
+      "D": new THREE.MeshStandardMaterial({ color: 0x84c5f4 }), // Door
+      "H": new THREE.MeshStandardMaterial({ color: 0xc4c4c4 }), // Hallway
+      "W": new THREE.MeshStandardMaterial({ color: 0x222222 }), // Walls
+      "default": new THREE.MeshStandardMaterial({ color: 0xf4f4f4 }) // Empty space
     };
 
     // Generate Dungeon Layout
     const dungeon = new THREE.Group();
     dungeonData.forEach((row, y) => {
       row.forEach((cell, x) => {
-        if (cell !== ' ') {
-          const material = materials[cell] || materials['default'];
+        if (cell !== " ") {
+          const material = materials[cell] || materials["default"];
           const geometry = new THREE.BoxGeometry(cellSize, height, cellSize);
           const cube = new THREE.Mesh(geometry, material);
           cube.position.set(x * cellSize, height / 2, y * cellSize);
@@ -105,9 +135,15 @@ function DungeonPreview() {
   }, [dungeonData]);
 
   return (
-    <div style={{ textAlign: 'center', marginTop: '20px' }}>
-      <button onClick={fetchDungeon} style={{ padding: '10px 20px', fontSize: '16px', marginBottom: '10px' }}>
+    <div style={{ textAlign: "center", marginTop: "20px" }}>
+      <button onClick={fetchDungeon} style={{ padding: "10px 20px", fontSize: "16px", marginBottom: "10px" }}>
         Generate New Dungeon
+      </button>
+      <button onClick={saveDungeon} style={{ padding: "10px 20px", fontSize: "16px", marginLeft: "10px" }}>
+        Save Dungeon
+      </button>
+      <button onClick={loadDungeon} style={{ padding: "10px 20px", fontSize: "16px", marginLeft: "10px" }}>
+        Load Dungeon
       </button>
       <div ref={mountRef} />
     </div>
