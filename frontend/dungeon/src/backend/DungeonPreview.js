@@ -2,7 +2,8 @@ import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
-function DungeonPreview({ dungeonData }) {
+function DungeonPreview({ dungeonData, onTileClick }) {
+
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -57,6 +58,17 @@ function DungeonPreview({ dungeonData }) {
           const cube = new THREE.Mesh(geometry, material);
           cube.position.set(x * cellSize, height / 2, y * cellSize);
           dungeon.add(cube);
+
+          // Store the grid coordinates
+          cube.userData = { x, y };
+
+          // Add interaction callback
+          cube.cursor = 'pointer';
+          cube.callback = () => {
+            if (onTileClick) {
+              onTileClick(x, y); // Pass the x, y of the clicked tile
+            }
+          };
         }
       });
     });
@@ -64,6 +76,25 @@ function DungeonPreview({ dungeonData }) {
     scene.add(dungeon);
     camera.position.set((cols * cellSize) / 2, 20, (rows * cellSize) / 2);
     camera.lookAt(new THREE.Vector3((cols * cellSize) / 2, 0, (rows * cellSize) / 2));
+    
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    const onClick = (event) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(dungeon.children);
+
+      if (intersects.length > 0) {
+        const clicked = intersects[0].object;
+        if (clicked.callback) clicked.callback();
+      }
+    };
+
+    renderer.domElement.addEventListener('click', onClick);
 
     const animate = function () {
       requestAnimationFrame(animate);
@@ -77,10 +108,11 @@ function DungeonPreview({ dungeonData }) {
       if (mountRef.current.firstChild) {
         mountRef.current.removeChild(renderer.domElement);
       }
+      renderer.domElement.removeEventListener('click', onClick);
     };
   }, [dungeonData]);
 
-  return <div ref={mountRef} />;
+  return <div ref={mountRef} style={{ width: '100%', height: '80vh' }} />;
 }
 
 export default DungeonPreview;

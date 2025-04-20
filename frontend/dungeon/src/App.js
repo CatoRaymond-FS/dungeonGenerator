@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import DungeonPreview from './backend/DungeonPreview';
 
+const TILE_TYPES = [' ', 'R', 'T', 'B', 'D', 'H', 'W'];
+
 function App() {
   const [rows, setRows] = useState(10);
   const [cols, setCols] = useState(10);
-  const [dungeonData, setDungeonData] = useState([]);
+  const [dungeonData, setDungeonData] = useState([]); // Correctly initialize dungeonData state
 
   // Load dungeon from local storage on app start
   useEffect(() => {
@@ -46,6 +48,21 @@ function App() {
     }
   };
 
+  // Handle tile click
+  const handleTileClick = (x, y) => {
+    const updated = dungeonData.map((row, rowIndex) =>
+      row.map((cell, colIndex) => {
+        if (rowIndex === y && colIndex === x) {
+          const index = TILE_TYPES.indexOf(cell);
+          const nextType = TILE_TYPES[(index + 1) % TILE_TYPES.length];
+          return nextType;
+        }
+        return cell;
+      })
+    );
+    setDungeonData(updated);
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -82,7 +99,8 @@ function App() {
           <button onClick={loadDungeon} style={{ marginLeft: '10px' }}>Load Dungeon</button>
         </div>
 
-        <DungeonPreview dungeonData={dungeonData} />
+        <DungeonPreview dungeonData={dungeonData} onTileClick={handleTileClick} />
+
       </header>
     </div>
   );
