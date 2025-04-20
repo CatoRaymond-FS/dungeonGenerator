@@ -38,13 +38,18 @@ def generate_dungeon(rows=10, cols=10):
     
     noise = np.random.normal(0, 1, (1, 100))
     raw_output = generator.predict(noise)
-    grid = raw_output.reshape(rows, cols)
+
+    if raw_output.size != 100:
+        raise HTTPException(status_code=500, detail="Unexpected model output shape.")
+
+    grid = raw_output.reshape(10, 10)
 
     dungeon = [
         [TILE_TYPES[int(cell * len(TILE_TYPES)) % len(TILE_TYPES)] for cell in row]
         for row in grid
     ]
     return dungeon
+
 
 # Endpoint: Generate dungeon
 @app.get("/generate_dungeon")
