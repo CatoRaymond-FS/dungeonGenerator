@@ -71,28 +71,6 @@ function App() {
         <h1>Procedural Dungeon Generator</h1>
   
         <form onSubmit={(e) => { e.preventDefault(); generateDungeon(); }}>
-          <label>
-            Rows:
-            <input
-              type="number"
-              min={5}
-              max={50}
-              value={rows}
-              onChange={(e) => setRows(Number(e.target.value))}
-              required
-            />
-          </label>
-          <label>
-            Columns:
-            <input
-              type="number"
-              min={5}
-              max={50}
-              value={cols}
-              onChange={(e) => setCols(Number(e.target.value))}
-              required
-            />
-          </label>
           <button type="submit">Generate Dungeon</button>
         </form>
   
