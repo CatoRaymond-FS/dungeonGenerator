@@ -185,8 +185,8 @@ function App() {
                 Empty
               </li>
               <li>
-                <span style={{ background: '#a3d9a5', width: 15, height: 15, display: 'inline-block', marginRight: 8 }} />
-                Room (R)
+              <span style={{ background: '#0a3d62', width: 15, height: 15, display: 'inline-block', marginRight: 8 }} />
+Room (R)
               </li>
               <li>
                 <span style={{ background: '#f4b6c2', width: 15, height: 15, display: 'inline-block', marginRight: 8 }} />
@@ -203,10 +203,6 @@ function App() {
               <li>
                 <span style={{ background: '#c4c4c4', width: 15, height: 15, display: 'inline-block', marginRight: 8 }} />
                 Hallway (H)
-              </li>
-              <li>
-                <span style={{ background: '#222222', width: 15, height: 15, display: 'inline-block', marginRight: 8 }} />
-                Wall (W)
               </li>
             </ul>
           </div>

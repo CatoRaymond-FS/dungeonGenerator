@@ -62,7 +62,7 @@ function DungeonPreview({ dungeonData = [], onTileClick }) {
     const height = 2;
 
     const materials = {
-      "R": new THREE.MeshStandardMaterial({ color: 0xa3d9a5 }),
+      "R": new THREE.MeshStandardMaterial({ color: 0x0a3d62 }),
       "T": new THREE.MeshStandardMaterial({ color: 0xf4b6c2 }),
       "B": new THREE.MeshStandardMaterial({ color: 0xfab005 }),
       "D": new THREE.MeshStandardMaterial({ color: 0x84c5f4 }),
