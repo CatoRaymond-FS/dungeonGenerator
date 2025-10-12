@@ -1,9 +1,9 @@
 // src/App.js
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import DungeonPreview from './backend/DungeonPreview';
+import DungeonPreview from './backend/DungeonPreview'; // make sure the path is correct
 
-const TILE_TYPES = [' ', 'R', 'T', 'B', 'D', 'H', 'W'];
+const TILE_TYPES = [' ', 'R', 'T', 'B', 'D', 'H']; // no walls
 
 function App() {
   const [rows, setRows] = useState(10);
@@ -13,49 +13,39 @@ function App() {
   const [showAiInfo, setShowAiInfo] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Load dungeon from local storage on app start
   useEffect(() => {
     const savedDungeon = localStorage.getItem('savedDungeon');
-    if (savedDungeon) {
-      setDungeonData(JSON.parse(savedDungeon));
-    }
+    if (savedDungeon) setDungeonData(JSON.parse(savedDungeon));
   }, []);
 
-  // Save dungeon to local storage
   const saveDungeon = () => {
     localStorage.setItem('savedDungeon', JSON.stringify(dungeonData));
     alert('Dungeon saved successfully!');
   };
 
-  // Load dungeon from local storage
   const loadDungeon = () => {
     const savedDungeon = localStorage.getItem('savedDungeon');
     if (savedDungeon) {
       setDungeonData(JSON.parse(savedDungeon));
       alert('Dungeon loaded successfully!');
-    } else {
-      alert('No saved dungeon found.');
-    }
+    } else alert('No saved dungeon found.');
   };
 
-  // -------------------------------
-  // Live AI dungeon generation via WebSocket
-  // -------------------------------
   const generateDungeonLive = () => {
     setLoading(true);
     setAiInfo(null);
 
-    const ws = new WebSocket('ws://127.0.0.1:8000/ws/generate_dungeon');
+    const ws = new WebSocket(
+      `ws://127.0.0.1:8000/ws/generate_dungeon?rows=${rows}&cols=${cols}`
+    );
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-
       if (data.done) {
         setLoading(false);
         ws.close();
         return;
       }
-
       if (data.dungeon && data.ai_info) {
         setDungeonData(data.dungeon);
         setAiInfo(data.ai_info);
@@ -69,22 +59,16 @@ function App() {
       ws.close();
     };
 
-    ws.onclose = () => {
-      setLoading(false);
-    };
+    ws.onclose = () => setLoading(false);
   };
 
-  // Handle tile click (left or right)
   const handleTileClick = (x, y, button = 0) => {
     const updated = dungeonData.map((row, rowIndex) =>
       row.map((cell, colIndex) => {
         if (rowIndex === y && colIndex === x) {
-          if (button === 2) {
-            return ' ';
-          } else {
-            const index = TILE_TYPES.indexOf(cell);
-            return TILE_TYPES[(index + 1) % TILE_TYPES.length];
-          }
+          if (button === 2) return ' ';
+          const index = TILE_TYPES.indexOf(cell);
+          return TILE_TYPES[(index + 1) % TILE_TYPES.length];
         }
         return cell;
       })
@@ -147,7 +131,6 @@ function App() {
             onClick={() => setShowAiInfo((s) => !s)}
             style={{ marginLeft: '12px' }}
             disabled={!aiInfo}
-            title="Toggle AI debug information (entropy, input noise, etc.)"
           >
             {showAiInfo ? 'Hide AI Info' : 'Show AI Info'}
           </button>
@@ -156,7 +139,7 @@ function App() {
         <div style={{ position: 'relative', width: '100%' }}>
           <DungeonPreview dungeonData={dungeonData} onTileClick={handleTileClick} />
 
-          {/* Instructions and Legend */}
+          {/* Legend and Instructions */}
           <div
             style={{
               position: 'absolute',
@@ -181,27 +164,75 @@ function App() {
             <h4 style={{ marginTop: 8 }}>Legend</h4>
             <ul style={{ paddingLeft: '1em', marginTop: 6, listStyle: 'none' }}>
               <li>
-                <span style={{ background: '#f4f4f4', width: 15, height: 15, display: 'inline-block', marginRight: 8 }} />
+                <span
+                  style={{
+                    background: '#f4f4f4',
+                    width: 15,
+                    height: 15,
+                    display: 'inline-block',
+                    marginRight: 8,
+                  }}
+                />
                 Empty
               </li>
               <li>
-              <span style={{ background: '#0a3d62', width: 15, height: 15, display: 'inline-block', marginRight: 8 }} />
-Room (R)
+                <span
+                  style={{
+                    background: '#003366',
+                    width: 15,
+                    height: 15,
+                    display: 'inline-block',
+                    marginRight: 8,
+                  }}
+                />
+                Room (R)
               </li>
               <li>
-                <span style={{ background: '#f4b6c2', width: 15, height: 15, display: 'inline-block', marginRight: 8 }} />
+                <span
+                  style={{
+                    background: '#f4b6c2',
+                    width: 15,
+                    height: 15,
+                    display: 'inline-block',
+                    marginRight: 8,
+                  }}
+                />
                 Trap (T)
               </li>
               <li>
-                <span style={{ background: '#fab005', width: 15, height: 15, display: 'inline-block', marginRight: 8 }} />
+                <span
+                  style={{
+                    background: '#fab005',
+                    width: 15,
+                    height: 15,
+                    display: 'inline-block',
+                    marginRight: 8,
+                  }}
+                />
                 Boss (B)
               </li>
               <li>
-                <span style={{ background: '#84c5f4', width: 15, height: 15, display: 'inline-block', marginRight: 8 }} />
+                <span
+                  style={{
+                    background: '#84c5f4',
+                    width: 15,
+                    height: 15,
+                    display: 'inline-block',
+                    marginRight: 8,
+                  }}
+                />
                 Door (D)
               </li>
               <li>
-                <span style={{ background: '#c4c4c4', width: 15, height: 15, display: 'inline-block', marginRight: 8 }} />
+                <span
+                  style={{
+                    background: '#c4c4c4',
+                    width: 15,
+                    height: 15,
+                    display: 'inline-block',
+                    marginRight: 8,
+                  }}
+                />
                 Hallway (H)
               </li>
             </ul>
@@ -228,9 +259,7 @@ Room (R)
               <h3 style={{ marginTop: 0, color: '#fff' }}>AI Debug Info</h3>
               <p style={{ margin: '6px 0' }}>
                 <strong>Entropy:</strong>{' '}
-                {typeof aiInfo.entropy !== 'undefined'
-                  ? Number(aiInfo.entropy).toFixed(4)
-                  : typeof aiInfo.entropy_estimate !== 'undefined'
+                {typeof aiInfo.entropy_estimate !== 'undefined'
                   ? Number(aiInfo.entropy_estimate).toFixed(4)
                   : 'N/A'}
               </p>
@@ -257,11 +286,6 @@ Room (R)
                   <strong>Model:</strong> {aiInfo.model}
                 </p>
               )}
-
-              <p style={{ marginTop: 10, color: '#ddd', fontSize: 12 }}>
-                Tip: press <strong>Show AI Info</strong> right after generating a dungeon to see the live
-                model output and metrics.
-              </p>
             </div>
           )}
         </div>

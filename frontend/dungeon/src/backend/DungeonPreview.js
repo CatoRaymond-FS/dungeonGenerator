@@ -6,26 +6,22 @@ function DungeonPreview({ dungeonData = [], onTileClick }) {
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
   const controlsRef = useRef(null);
-  const cameraPosition = useRef(new THREE.Vector3(0, 20, 0));  // Track camera position
+  const cameraPosition = useRef(new THREE.Vector3(0, 20, 0));
 
-  // Function to save camera position to localStorage
+  // Save camera position to localStorage
   const saveCameraPosition = () => {
-    const position = {
-      x: cameraPosition.current.x,
-      y: cameraPosition.current.y,
-      z: cameraPosition.current.z
-    };
-    localStorage.setItem("cameraPosition", JSON.stringify(position));
+    const pos = cameraPosition.current;
+    localStorage.setItem("cameraPosition", JSON.stringify({ x: pos.x, y: pos.y, z: pos.z }));
   };
 
-  // Function to load camera position from localStorage
+  // Load camera position from localStorage
   const loadCameraPosition = () => {
-    const savedPosition = localStorage.getItem("cameraPosition");
-    if (savedPosition) {
-      const { x, y, z } = JSON.parse(savedPosition);
+    const saved = localStorage.getItem("cameraPosition");
+    if (saved) {
+      const { x, y, z } = JSON.parse(saved);
       return new THREE.Vector3(x, y, z);
     }
-    return new THREE.Vector3(0, 20, 0); // Default position if nothing is saved
+    return new THREE.Vector3(0, 20, 0);
   };
 
   useEffect(() => {
@@ -39,35 +35,30 @@ function DungeonPreview({ dungeonData = [], onTileClick }) {
     renderer.setSize(window.innerWidth * 0.8, window.innerHeight * 0.8);
     mountRef.current.appendChild(renderer.domElement);
 
+    // Lights
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(5, 10, 5);
-    scene.add(directionalLight);
+    scene.add(ambientLight, directionalLight);
 
+    // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
-    controls.rotateSpeed = 0.5;
-    controls.zoomSpeed = 0.8;
-    controls.enableZoom = false;  // Disable zoom from controls
-    controls.enablePan = true;    // Allow panning
-    controls.enableRotate = false; // Disable rotating
-
+    controls.enableZoom = false; 
+    controls.enablePan = true; 
+    controls.enableRotate = false;
     controlsRef.current = controls;
 
-    const rows = dungeonData.length;
-    const cols = dungeonData[0].length;
     const cellSize = 4;
     const height = 2;
 
     const materials = {
-      "R": new THREE.MeshStandardMaterial({ color: 0x0a3d62 }),
+      "R": new THREE.MeshStandardMaterial({ color: 0x0a3d62 }), // dark blue rooms
       "T": new THREE.MeshStandardMaterial({ color: 0xf4b6c2 }),
       "B": new THREE.MeshStandardMaterial({ color: 0xfab005 }),
       "D": new THREE.MeshStandardMaterial({ color: 0x84c5f4 }),
       "H": new THREE.MeshStandardMaterial({ color: 0xc4c4c4 }),
-      "W": new THREE.MeshStandardMaterial({ color: 0x222222 }),
       "default": new THREE.MeshStandardMaterial({ color: 0xf4f4f4 }),
     };
 
@@ -78,23 +69,18 @@ function DungeonPreview({ dungeonData = [], onTileClick }) {
         const geometry = new THREE.BoxGeometry(cellSize, height, cellSize);
         const material = (cell !== " ") ? (materials[cell] || materials["default"]) : new THREE.MeshBasicMaterial({ visible: false });
         const cube = new THREE.Mesh(geometry, material);
-
         cube.position.set(x * cellSize, height / 2, y * cellSize);
         cube.userData = { x, y };
-
         dungeonGroup.add(cube);
       });
     });
 
     scene.add(dungeonGroup);
 
-    // Set initial camera position from localStorage or default position
+    // Set camera initial position
     const initialCameraPosition = loadCameraPosition();
-    console.log("Initial Camera Position:", initialCameraPosition);
     camera.position.copy(initialCameraPosition);
-    cameraPosition.current = initialCameraPosition;  // Set the reference
-
-    // Set initial target for controls to avoid snapping
+    cameraPosition.current = initialCameraPosition;
     controls.target.copy(new THREE.Vector3(initialCameraPosition.x, 0, initialCameraPosition.z));
 
     const raycaster = new THREE.Raycaster();
@@ -110,95 +96,80 @@ function DungeonPreview({ dungeonData = [], onTileClick }) {
 
       if (intersects.length > 0) {
         const clicked = intersects[0].object;
-        const { x, y } = clicked.userData;
-        console.log(`Tile clicked at: (${x}, ${y})`);
-        if (onTileClick) {
-          onTileClick(x, y, event.button);
-        }
+        if (onTileClick) onTileClick(clicked.userData.x, clicked.userData.y, event.button);
       }
     };
 
-    renderer.domElement.addEventListener('mousedown', onClick);
+    renderer.domElement.addEventListener("mousedown", onClick);
 
-    const animate = function () {
+    const animate = () => {
       requestAnimationFrame(animate);
-      controls.update(); // Keep the control's state updated
+      controls.update();
       renderer.render(scene, camera);
     };
     animate();
 
     return () => {
       controls.dispose();
-      if (mountRef.current.firstChild) {
-        mountRef.current.removeChild(renderer.domElement);
-      }
-      renderer.domElement.removeEventListener('mousedown', onClick);
+      renderer.domElement.removeEventListener("mousedown", onClick);
+      if (mountRef.current.firstChild) mountRef.current.removeChild(renderer.domElement);
     };
   }, [dungeonData, onTileClick]);
 
-  // Function to move the camera manually and save the new position
-  const moveCamera = (deltaX, deltaY) => {
-    console.log(`Moving camera by: X: ${deltaX}, Y: ${deltaY}`);
-    cameraPosition.current.x += deltaX;
-    cameraPosition.current.z += deltaY;
-    if (cameraRef.current) {
-      console.log("New camera position:", cameraPosition.current);
-      cameraRef.current.position.copy(cameraPosition.current);
-      cameraRef.current.lookAt(new THREE.Vector3(cameraPosition.current.x, 0, cameraPosition.current.z));
-      controlsRef.current.target.copy(new THREE.Vector3(cameraPosition.current.x, 0, cameraPosition.current.z)); // Update target
-      saveCameraPosition(); // Save updated position to localStorage
-    }
-  };
-
-  // Function to zoom the camera in and out using q and e
-  const zoomCamera = (zoomIn) => {
-    const zoomSpeed = 2;
+  // Camera movement
+  const moveCamera = (dx, dz) => {
+    cameraPosition.current.x += dx;
+    cameraPosition.current.z += dz;
     if (cameraRef.current && controlsRef.current) {
-      const direction = new THREE.Vector3();
-      cameraRef.current.getWorldDirection(direction); // Get the forward vector
-      if (!zoomIn) {
-        direction.multiplyScalar(-1); // Invert direction if zooming out
-      }
-      direction.multiplyScalar(zoomSpeed);
-      cameraPosition.current.add(direction);
       cameraRef.current.position.copy(cameraPosition.current);
-      cameraRef.current.lookAt(controlsRef.current.target);
+      controlsRef.current.target.copy(new THREE.Vector3(cameraPosition.current.x, 0, cameraPosition.current.z));
       saveCameraPosition();
     }
   };
-  
+
+  // Fixed zoom function
+  const zoomCamera = (zoomIn) => {
+    if (!cameraRef.current || !controlsRef.current) return;
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    const zoomSpeed = 1.5;
+
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    if (!zoomIn) dir.multiplyScalar(-1);
+
+    const newPos = camera.position.clone().add(dir.multiplyScalar(zoomSpeed));
+
+    const distance = newPos.distanceTo(controls.target);
+    if (distance < 5 || distance > 100) return;
+
+    camera.position.copy(newPos);
+    cameraPosition.current.copy(newPos);
+    controls.update();
+    saveCameraPosition();
+  };
 
   useEffect(() => {
     const handleKeydown = (event) => {
-      console.log(`Key pressed: ${event.key}`);
-      if (event.key === "ArrowUp" || event.key === "w") {
-        moveCamera(0, -1);
-      }
-      if (event.key === "ArrowDown" || event.key === "s") {
-        moveCamera(0, 1);
-      }
-      if (event.key === "ArrowLeft" || event.key === "a") {
-        moveCamera(-1, 0);
-      }
-      if (event.key === "ArrowRight" || event.key === "d") {
-        moveCamera(1, 0);
-      }
-      if (event.key === "q") {
-        zoomCamera(false); // Zoom out
-      }
-      if (event.key === "e") {
-        zoomCamera(true); // Zoom in
+      switch (event.key) {
+        case "ArrowUp":
+        case "w": moveCamera(0, -1); break;
+        case "ArrowDown":
+        case "s": moveCamera(0, 1); break;
+        case "ArrowLeft":
+        case "a": moveCamera(-1, 0); break;
+        case "ArrowRight":
+        case "d": moveCamera(1, 0); break;
+        case "q": zoomCamera(false); break;
+        case "e": zoomCamera(true); break;
       }
     };
 
     window.addEventListener("keydown", handleKeydown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeydown);
-    };
+    return () => window.removeEventListener("keydown", handleKeydown);
   }, []);
 
-  return <div ref={mountRef} style={{ width: '100%', height: '80vh' }} />;
+  return <div ref={mountRef} style={{ width: "100%", height: "80vh" }} />;
 }
 
 export default DungeonPreview;

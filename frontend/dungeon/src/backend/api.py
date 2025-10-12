@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 import os
@@ -40,22 +40,21 @@ def calculate_entropy(flat_grid):
 def generate_connected_dungeon(rows=10, cols=10):
     dungeon = [[' ' for _ in range(cols)] for _ in range(rows)]
 
-    # Create a simple spanning path using DFS or randomized walk
     def carve_path(x, y, visited):
         visited.add((x, y))
-        dungeon[y][x] = 'R' if np.random.rand() < 0.7 else 'H'  # mostly rooms
+        dungeon[y][x] = 'R' if np.random.rand() < 0.7 else 'H'
         directions = [(0,1),(1,0),(0,-1),(-1,0)]
         np.random.shuffle(directions)
         for dx, dy in directions:
-            nx, ny = x + dx, y + dy
+            nx, ny = x+dx, y+dy
             if 0 <= nx < cols and 0 <= ny < rows and (nx, ny) not in visited:
                 dungeon[ny][nx] = 'H'
                 carve_path(nx, ny, visited)
 
     carve_path(0, 0, set())
 
-    # Place doors, traps, and boss randomly
-    for _ in range(max(1, rows * cols // 20)):
+    # Random doors, traps, boss
+    for _ in range(max(1, rows*cols // 20)):
         x, y = np.random.randint(0, cols), np.random.randint(0, rows)
         dungeon[y][x] = np.random.choice(['D','T','B'], p=[0.5,0.4,0.1])
 
@@ -95,15 +94,15 @@ def load_dungeon(dungeon_id: int):
 # WebSocket Endpoint for live generation
 # --------------------------
 @app.websocket("/ws/generate_dungeon")
-async def websocket_generate(websocket: WebSocket):
+async def websocket_generate(websocket: WebSocket, rows: int = Query(10), cols: int = Query(10)):
     await websocket.accept()
     try:
         total_steps = 5
         for step in range(total_steps):
-            dungeon = generate_connected_dungeon()
+            dungeon = generate_connected_dungeon(rows, cols)
             flat_grid = [cell for row in dungeon for cell in row]
             entropy = calculate_entropy(flat_grid)
-            noise_sample = np.random.normal(0, 1, 10).tolist()  # simulate first 10 noise values
+            noise_sample = np.random.normal(0,1,10).tolist()
 
             await websocket.send_json({
                 "step": step + 1,
