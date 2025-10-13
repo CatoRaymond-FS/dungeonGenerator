@@ -6,102 +6,168 @@ function DungeonPreview({ dungeonData = [], onTileClick }) {
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
   const controlsRef = useRef(null);
-  const cameraPosition = useRef(new THREE.Vector3(0, 20, 0));
+  const cameraPosition = useRef(new THREE.Vector3(0, 20, 20));
 
-  // Save camera position to localStorage
   const saveCameraPosition = () => {
-    const pos = cameraPosition.current;
-    localStorage.setItem("cameraPosition", JSON.stringify({ x: pos.x, y: pos.y, z: pos.z }));
+    localStorage.setItem("cameraPosition", JSON.stringify(cameraPosition.current));
   };
 
-  // Load camera position from localStorage
   const loadCameraPosition = () => {
     const saved = localStorage.getItem("cameraPosition");
     if (saved) {
       const { x, y, z } = JSON.parse(saved);
       return new THREE.Vector3(x, y, z);
     }
-    return new THREE.Vector3(0, 20, 0);
+    return new THREE.Vector3(0, 20, 20);
   };
 
   useEffect(() => {
-    if (!dungeonData || dungeonData.length === 0) return;
+    if (!dungeonData.length) return;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    scene.fog = new THREE.FogExp2(0x111216, 0.02); // dark mystical fog
+
+    // --- Background gradient / sky ---
+    const topColor = new THREE.Color(0x3b0a3b);
+    const bottomColor = new THREE.Color(0x0a0a1f);
+    const skyGeo = new THREE.SphereGeometry(500, 32, 15);
+    const skyMat = new THREE.ShaderMaterial({
+      uniforms: {
+        topColor: { value: topColor },
+        bottomColor: { value: bottomColor },
+        offset: { value: 400 },
+        exponent: { value: 0.7 },
+      },
+      vertexShader: `
+        varying vec3 vWorldPosition;
+        void main() {
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPosition.xyz;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 topColor;
+        uniform vec3 bottomColor;
+        uniform float offset;
+        uniform float exponent;
+        varying vec3 vWorldPosition;
+        void main() {
+          float h = normalize(vWorldPosition + offset).y;
+          gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h,0.0), exponent),0.0)),1.0);
+        }
+      `,
+      side: THREE.BackSide,
+      depthWrite: false,
+    });
+    scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+    // --- Camera ---
+    const camera = new THREE.PerspectiveCamera(
+      60,
+      mountRef.current.clientWidth / mountRef.current.clientHeight,
+      0.1,
+      1000
+    );
     cameraRef.current = camera;
 
+    // --- Renderer ---
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth * 0.8, window.innerHeight * 0.8);
+    renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     mountRef.current.appendChild(renderer.domElement);
 
-    // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(5, 10, 5);
-    scene.add(ambientLight, directionalLight);
+    // --- Lights ---
+    const ambient = new THREE.AmbientLight(0xffe6cc, 0.5); // warm ambient
+    const dirLight = new THREE.DirectionalLight(0xfff5dd, 0.9); // soft directional
+    dirLight.position.set(10, 20, 10);
+    dirLight.castShadow = true;
+    scene.add(ambient, dirLight);
 
-    // Controls
+    // --- Controls ---
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.1;
-    controls.enableZoom = false; 
-    controls.enablePan = true; 
-    controls.enableRotate = false;
+    controls.enableRotate = true;
+    controls.enableZoom = true;
+    controls.enablePan = true;
+    controls.minDistance = 5;
+    controls.maxDistance = 100;
+    controls.maxPolarAngle = Math.PI / 2;
+    controls.addEventListener("change", saveCameraPosition);
     controlsRef.current = controls;
 
-    const cellSize = 4;
-    const height = 2;
+    // --- Floor ---
+    const rows = dungeonData.length;
+    const cols = dungeonData[0].length;
+    const cellSize = 3.5;
+    const spacing = cellSize;
 
+    const floorGeo = new THREE.PlaneGeometry(cols * spacing + 6, rows * spacing + 6);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x222629, roughness: 0.8 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    floor.position.set(((cols - 1) * spacing) / 2, 0, ((rows - 1) * spacing) / 2);
+    scene.add(floor);
+
+    // --- Tile materials (fantasy-themed) ---
     const materials = {
-      "R": new THREE.MeshStandardMaterial({ color: 0x0a3d62 }), // dark blue rooms
-      "T": new THREE.MeshStandardMaterial({ color: 0xf4b6c2 }),
-      "B": new THREE.MeshStandardMaterial({ color: 0xfab005 }),
-      "D": new THREE.MeshStandardMaterial({ color: 0x84c5f4 }),
-      "H": new THREE.MeshStandardMaterial({ color: 0xc4c4c4 }),
-      "default": new THREE.MeshStandardMaterial({ color: 0xf4f4f4 }),
+      R: new THREE.MeshStandardMaterial({ color: 0x001f3f, roughness: 0.6, metalness: 0.1 }), // dark blue rooms
+      H: new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 }), // stone hall
+      T: new THREE.MeshStandardMaterial({ color: 0x9e2a2b, roughness: 0.7, emissive: 0x440000 }), // glowing trap
+      B: new THREE.MeshStandardMaterial({ color: 0xffa500, roughness: 0.5, emissive: 0x552800 }), // boss room
+      D: new THREE.MeshStandardMaterial({ color: 0x4b0082, roughness: 0.5, emissive: 0x220044 }), // magical door
+      default: new THREE.MeshStandardMaterial({ color: 0xf4f4f4 }),
     };
 
-    const dungeonGroup = new THREE.Group();
+    const tileHeight = { R: 2.4, H: 0.9, T: 0.5, B: 3.2, D: 0.8, " ": 0.05 };
 
+    const group = new THREE.Group();
     dungeonData.forEach((row, y) => {
       row.forEach((cell, x) => {
-        const geometry = new THREE.BoxGeometry(cellSize, height, cellSize);
-        const material = (cell !== " ") ? (materials[cell] || materials["default"]) : new THREE.MeshBasicMaterial({ visible: false });
-        const cube = new THREE.Mesh(geometry, material);
-        cube.position.set(x * cellSize, height / 2, y * cellSize);
-        cube.userData = { x, y };
-        dungeonGroup.add(cube);
+        const type = cell || " ";
+        const height = tileHeight[type];
+        let mesh;
+
+        if (type === " ") {
+          const invisibleGeo = new THREE.PlaneGeometry(cellSize, cellSize);
+          mesh = new THREE.Mesh(invisibleGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
+          mesh.rotation.x = -Math.PI / 2;
+          mesh.position.set(x * spacing, 0.01, y * spacing);
+        } else {
+          const geometry = new THREE.BoxGeometry(cellSize * 0.95, height, cellSize * 0.95);
+          mesh = new THREE.Mesh(geometry, materials[type] || materials.default);
+          mesh.position.set(x * spacing, height / 2, y * spacing);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+        }
+
+        mesh.userData = { x, y, type };
+        group.add(mesh);
       });
     });
+    scene.add(group);
 
-    scene.add(dungeonGroup);
+    // --- Camera init ---
+    const initial = loadCameraPosition();
+    camera.position.copy(initial);
+    controls.target.set(((cols - 1) * spacing) / 2, 0, ((rows - 1) * spacing) / 2);
 
-    // Set camera initial position
-    const initialCameraPosition = loadCameraPosition();
-    camera.position.copy(initialCameraPosition);
-    cameraPosition.current = initialCameraPosition;
-    controls.target.copy(new THREE.Vector3(initialCameraPosition.x, 0, initialCameraPosition.z));
-
+    // --- Raycast ---
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
-
-    const onClick = (event) => {
+    const onClick = (e) => {
       const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(dungeonGroup.children);
-
-      if (intersects.length > 0) {
-        const clicked = intersects[0].object;
-        if (onTileClick) onTileClick(clicked.userData.x, clicked.userData.y, event.button);
-      }
+      const intersects = raycaster.intersectObjects(group.children);
+      if (intersects.length && onTileClick) onTileClick(intersects[0].object.userData.x, intersects[0].object.userData.y, e.button);
     };
-
     renderer.domElement.addEventListener("mousedown", onClick);
 
+    // --- Animate ---
     const animate = () => {
       requestAnimationFrame(animate);
       controls.update();
@@ -110,64 +176,10 @@ function DungeonPreview({ dungeonData = [], onTileClick }) {
     animate();
 
     return () => {
-      controls.dispose();
       renderer.domElement.removeEventListener("mousedown", onClick);
-      if (mountRef.current.firstChild) mountRef.current.removeChild(renderer.domElement);
+      if (mountRef.current) mountRef.current.removeChild(renderer.domElement);
     };
   }, [dungeonData, onTileClick]);
-
-  // Camera movement
-  const moveCamera = (dx, dz) => {
-    cameraPosition.current.x += dx;
-    cameraPosition.current.z += dz;
-    if (cameraRef.current && controlsRef.current) {
-      cameraRef.current.position.copy(cameraPosition.current);
-      controlsRef.current.target.copy(new THREE.Vector3(cameraPosition.current.x, 0, cameraPosition.current.z));
-      saveCameraPosition();
-    }
-  };
-
-  // Fixed zoom function
-  const zoomCamera = (zoomIn) => {
-    if (!cameraRef.current || !controlsRef.current) return;
-    const camera = cameraRef.current;
-    const controls = controlsRef.current;
-    const zoomSpeed = 1.5;
-
-    const dir = new THREE.Vector3();
-    camera.getWorldDirection(dir);
-    if (!zoomIn) dir.multiplyScalar(-1);
-
-    const newPos = camera.position.clone().add(dir.multiplyScalar(zoomSpeed));
-
-    const distance = newPos.distanceTo(controls.target);
-    if (distance < 5 || distance > 100) return;
-
-    camera.position.copy(newPos);
-    cameraPosition.current.copy(newPos);
-    controls.update();
-    saveCameraPosition();
-  };
-
-  useEffect(() => {
-    const handleKeydown = (event) => {
-      switch (event.key) {
-        case "ArrowUp":
-        case "w": moveCamera(0, -1); break;
-        case "ArrowDown":
-        case "s": moveCamera(0, 1); break;
-        case "ArrowLeft":
-        case "a": moveCamera(-1, 0); break;
-        case "ArrowRight":
-        case "d": moveCamera(1, 0); break;
-        case "q": zoomCamera(false); break;
-        case "e": zoomCamera(true); break;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeydown);
-    return () => window.removeEventListener("keydown", handleKeydown);
-  }, []);
 
   return <div ref={mountRef} style={{ width: "100%", height: "80vh" }} />;
 }

@@ -1,9 +1,8 @@
-// src/App.js
-import React, { useState, useEffect } from 'react';
-import './App.css';
-import DungeonPreview from './backend/DungeonPreview'; // make sure the path is correct
+import React, { useState, useEffect } from "react";
+import "./App.css";
+import DungeonPreview from "./backend/DungeonPreview";
 
-const TILE_TYPES = [' ', 'R', 'T', 'B', 'D', 'H']; // no walls
+const TILE_TYPES = [" ", "R", "T", "B", "D", "H"];
 
 function App() {
   const [rows, setRows] = useState(10);
@@ -14,21 +13,21 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const savedDungeon = localStorage.getItem('savedDungeon');
+    const savedDungeon = localStorage.getItem("savedDungeon");
     if (savedDungeon) setDungeonData(JSON.parse(savedDungeon));
   }, []);
 
   const saveDungeon = () => {
-    localStorage.setItem('savedDungeon', JSON.stringify(dungeonData));
-    alert('Dungeon saved successfully!');
+    localStorage.setItem("savedDungeon", JSON.stringify(dungeonData));
+    alert("Dungeon saved successfully!");
   };
 
   const loadDungeon = () => {
-    const savedDungeon = localStorage.getItem('savedDungeon');
+    const savedDungeon = localStorage.getItem("savedDungeon");
     if (savedDungeon) {
       setDungeonData(JSON.parse(savedDungeon));
-      alert('Dungeon loaded successfully!');
-    } else alert('No saved dungeon found.');
+      alert("Dungeon loaded successfully!");
+    } else alert("No saved dungeon found.");
   };
 
   const generateDungeonLive = () => {
@@ -54,7 +53,7 @@ function App() {
     };
 
     ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
+      console.error("WebSocket error:", err);
       setLoading(false);
       ws.close();
     };
@@ -66,7 +65,7 @@ function App() {
     const updated = dungeonData.map((row, rowIndex) =>
       row.map((cell, colIndex) => {
         if (rowIndex === y && colIndex === x) {
-          if (button === 2) return ' ';
+          if (button === 2) return " ";
           const index = TILE_TYPES.indexOf(cell);
           return TILE_TYPES[(index + 1) % TILE_TYPES.length];
         }
@@ -115,62 +114,67 @@ function App() {
           </label>
 
           <button type="submit" disabled={loading}>
-            {loading ? 'Generating…' : 'Generate Dungeon'}
+            {loading ? "Generating…" : "Generate Dungeon"}
           </button>
         </form>
 
-        <div style={{ marginTop: '10px', marginBottom: '18px' }}>
+        <div style={{ marginTop: "10px", marginBottom: "18px" }}>
           <button onClick={saveDungeon} disabled={!dungeonData.length}>
             Save Dungeon
           </button>
-          <button onClick={loadDungeon} style={{ marginLeft: '10px' }}>
+          <button onClick={loadDungeon} style={{ marginLeft: "10px" }}>
             Load Dungeon
           </button>
 
           <button
             onClick={() => setShowAiInfo((s) => !s)}
-            style={{ marginLeft: '12px' }}
+            style={{ marginLeft: "12px" }}
             disabled={!aiInfo}
           >
-            {showAiInfo ? 'Hide AI Info' : 'Show AI Info'}
+            {showAiInfo ? "Hide AI Info" : "Show AI Info"}
           </button>
         </div>
 
-        <div style={{ position: 'relative', width: '100%' }}>
+        <div style={{ position: "relative", width: "100%" }}>
           <DungeonPreview dungeonData={dungeonData} onTileClick={handleTileClick} />
 
-          {/* Legend and Instructions */}
+          {/* Legend and Controls */}
           <div
             style={{
-              position: 'absolute',
+              position: "absolute",
               top: 20,
               left: 20,
-              background: 'rgba(0,0,0,0.75)',
-              color: 'white',
-              padding: '12px',
-              borderRadius: '8px',
-              fontSize: '14px',
-              maxWidth: '300px',
+              background: "rgba(10,10,20,0.9)",
+              color: "#f0e6d2",
+              padding: "12px",
+              borderRadius: "8px",
+              fontSize: "14px",
+              maxWidth: "300px",
+              fontFamily: "fantasy",
+              lineHeight: 1.4,
+              border: "2px solid #8b5e3c",
             }}
           >
-            <h4 style={{ margin: '0 0 6px 0' }}>Controls</h4>
-            <ul style={{ paddingLeft: '1em', marginTop: 4 }}>
-              <li>WASD: Move camera</li>
-              <li>Q / E: Zoom in / out</li>
-              <li>Click (left): Cycle tile type</li>
-              <li>Right Click: Clear tile</li>
+            <h4 style={{ margin: "0 0 6px 0", color: "#f3c88e" }}>Controls</h4>
+            <ul style={{ paddingLeft: "1em", marginTop: 4 }}>
+              <li>Left-click + drag: Rotate camera</li>
+              <li>Right-click + drag: Pan view</li>
+              <li>Scroll: Zoom in/out</li>
+              <li>Click a tile: Cycle tile type</li>
+              <li>Right-click tile: Clear</li>
             </ul>
 
-            <h4 style={{ marginTop: 8 }}>Legend</h4>
-            <ul style={{ paddingLeft: '1em', marginTop: 6, listStyle: 'none' }}>
+            <h4 style={{ marginTop: 8, color: "#f3c88e" }}>Legend</h4>
+            <ul style={{ paddingLeft: "1em", marginTop: 6, listStyle: "none" }}>
               <li>
                 <span
                   style={{
-                    background: '#f4f4f4',
+                    background: "#00000000",
                     width: 15,
                     height: 15,
-                    display: 'inline-block',
+                    display: "inline-block",
                     marginRight: 8,
+                    border: "1px solid #555",
                   }}
                 />
                 Empty
@@ -178,10 +182,10 @@ function App() {
               <li>
                 <span
                   style={{
-                    background: '#003366',
+                    background: "#001f3f",
                     width: 15,
                     height: 15,
-                    display: 'inline-block',
+                    display: "inline-block",
                     marginRight: 8,
                   }}
                 />
@@ -190,10 +194,10 @@ function App() {
               <li>
                 <span
                   style={{
-                    background: '#f4b6c2',
+                    background: "#9e2a2b",
                     width: 15,
                     height: 15,
-                    display: 'inline-block',
+                    display: "inline-block",
                     marginRight: 8,
                   }}
                 />
@@ -202,10 +206,10 @@ function App() {
               <li>
                 <span
                   style={{
-                    background: '#fab005',
+                    background: "#ffa500",
                     width: 15,
                     height: 15,
-                    display: 'inline-block',
+                    display: "inline-block",
                     marginRight: 8,
                   }}
                 />
@@ -214,10 +218,10 @@ function App() {
               <li>
                 <span
                   style={{
-                    background: '#84c5f4',
+                    background: "#4b0082",
                     width: 15,
                     height: 15,
-                    display: 'inline-block',
+                    display: "inline-block",
                     marginRight: 8,
                   }}
                 />
@@ -226,10 +230,10 @@ function App() {
               <li>
                 <span
                   style={{
-                    background: '#c4c4c4',
+                    background: "#555555",
                     width: 15,
                     height: 15,
-                    display: 'inline-block',
+                    display: "inline-block",
                     marginRight: 8,
                   }}
                 />
@@ -242,45 +246,47 @@ function App() {
           {showAiInfo && aiInfo && (
             <div
               style={{
-                position: 'absolute',
+                position: "absolute",
                 top: 20,
                 right: 20,
-                background: 'rgba(0,0,0,0.85)',
-                color: '#9cffb7',
-                padding: '12px',
-                borderRadius: '8px',
-                fontSize: '13px',
+                background: "rgba(10,10,20,0.9)",
+                color: "#f0e6d2",
+                padding: "12px",
+                borderRadius: "8px",
+                fontSize: "13px",
                 width: 320,
-                maxHeight: '60vh',
-                overflowY: 'auto',
-                textAlign: 'left',
+                maxHeight: "60vh",
+                overflowY: "auto",
+                textAlign: "left",
+                fontFamily: "fantasy",
+                lineHeight: 1.4,
+                border: "2px solid #8b5e3c",
               }}
             >
-              <h3 style={{ marginTop: 0, color: '#fff' }}>AI Debug Info</h3>
-              <p style={{ margin: '6px 0' }}>
-                <strong>Entropy:</strong>{' '}
-                {typeof aiInfo.entropy_estimate !== 'undefined'
+              <h3 style={{ marginTop: 0, color: "#f3c88e" }}>AI Debug Info</h3>
+              <p style={{ margin: "6px 0" }}>
+                <strong>Entropy:</strong>{" "}
+                {typeof aiInfo.entropy_estimate !== "undefined"
                   ? Number(aiInfo.entropy_estimate).toFixed(4)
-                  : 'N/A'}
+                  : "N/A"}
               </p>
               {aiInfo.input_noise_sample && (
                 <div style={{ marginTop: 6 }}>
                   <strong>Noise sample (first 10):</strong>
                   <pre
                     style={{
-                      background: '#021205',
-                      color: '#7fffb3',
+                      background: "#021205",
+                      color: "#7fffb3",
                       padding: 8,
                       borderRadius: 6,
                       fontSize: 12,
-                      overflowX: 'auto',
+                      overflowX: "auto",
                     }}
                   >
                     {JSON.stringify(aiInfo.input_noise_sample, null, 2)}
                   </pre>
                 </div>
               )}
-
               {aiInfo.model && (
                 <p style={{ marginTop: 6 }}>
                   <strong>Model:</strong> {aiInfo.model}

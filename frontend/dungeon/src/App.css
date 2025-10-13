@@ -1,74 +1,109 @@
+/* General App setup */
 .App {
   text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
+  background-color: #1a1a1a; /* dark, moody base */
+  font-family: "Cinzel", "Papyrus", fantasy; /* fantasy style font */
+  color: #f4f1de; /* parchment-like text */
   min-height: 100vh;
+  padding: 1rem;
+}
+
+/* Header styling */
+.App-header {
+  background: linear-gradient(to bottom, #3a2e2b, #1a1a1a);
+  border: 2px solid #8b5e3c; /* wooden frame feel */
+  border-radius: 1rem;
+  padding: 2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  box-shadow: 0 0 30px #00000099;
 }
 
-.App-link {
-  color: #61dafb;
+/* Title */
+.App-header h1 {
+  font-family: "Cinzel", fantasy;
+  color: #f4e1c1;
+  text-shadow: 2px 2px 4px #000000aa;
+  margin-bottom: 1rem;
+  font-size: 2.5rem;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.mainButton {
-  color: purple;
-  font-family: fantasy;
-  font-size: larger;
-  height: 10vh;
-  width: 50vh;
-  background-color: tan;
-  border-radius: 8px;
+/* Buttons */
+.mainButton, .resetButton, button {
+  color: #1a1a1a;
+  font-family: "Cinzel", fantasy;
+  font-size: 1.2rem;
   font-weight: bold;
+  height: 3rem;
+  padding: 0 1.5rem;
+  margin: 0.5rem;
+  border-radius: 0.5rem;
+  border: 2px solid #8b5e3c;
+  background: linear-gradient(to bottom, #d9c6a3, #c4a96c);
+  box-shadow: 0 3px 6px #00000077;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
 }
 
-.mainButton:hover {
-  color: black;
-  background-color: green;
+.mainButton:hover, .resetButton:hover, button:hover {
+  color: #f4f1de;
+  background: linear-gradient(to bottom, #b48c4f, #8b5e3c);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px #00000088;
 }
 
+/* Input Labels */
 .label {
-  color: green;
+  color: #f4e1c1;
   display: flex;
   padding: 0.1rem;
   padding-right: 1rem;
-  font-family: fantasy;
+  font-family: "Cinzel", fantasy;
+  font-size: 1.1rem;
 }
 
-.textBox {
-  display: flex;
-  border-radius: 2rem;
+/* Text Inputs */
+.textBox input, input[type="number"] {
+  border-radius: 1rem;
+  border: 2px solid #8b5e3c;
+  padding: 0.3rem 0.8rem;
+  font-family: "Cinzel", fantasy;
+  background-color: #f4f1de22;
+  color: #f4f1de;
+  width: 5rem;
+  font-size: 1rem;
 }
 
-.resetButton {
-  color: tan;
-  background-color: purple;
-  height: auto;
-  width: 8rem;
+/* Dungeon Legend / Controls Panel */
+legend-panel, .App-header div[style*="position: absolute"] {
+  background: url('https://i.imgur.com/po7rTml.png'); /* subtle parchment texture */
+  background-size: cover;
+  border: 2px solid #8b5e3c;
+  border-radius: 0.8rem;
+  padding: 1rem;
+  box-shadow: 0 0 20px #000000aa;
+  color: #3a2e2b;
+  font-family: "Cinzel", fantasy;
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+/* Dungeon Legend Boxes */
+.App-header ul li span {
+  border: 1px solid #8b5e3c;
+  box-shadow: inset 1px 1px 2px #00000088;
+}
+
+/* Scrollable AI Panel */
+.App-header div[style*="overflowY: auto"] {
+  background: url('https://i.imgur.com/po7rTml.png'); /* parchment texture */
+  background-size: cover;
+  color: #3a2e2b;
+}
+
+/* Smooth Animations */
+@keyframes App-logo-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
