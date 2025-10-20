@@ -80,14 +80,22 @@ function App() {
       <header className="App-header">
         <h1>Procedural Dungeon Generator</h1>
 
+        {/* --- Dungeon Form --- */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
             generateDungeonLive();
           }}
-          style={{ marginBottom: 12 }}
+          style={{
+            display: "flex",
+            gap: "1rem",
+            alignItems: "center",
+            justifyContent: "center",
+            flexWrap: "wrap",
+            marginBottom: "1rem",
+          }}
         >
-          <label style={{ marginRight: 8 }}>
+          <label>
             Rows:
             <input
               type="number"
@@ -95,12 +103,11 @@ function App() {
               max={50}
               value={rows}
               onChange={(e) => setRows(Number(e.target.value) || 10)}
-              style={{ width: 60, marginLeft: 6 }}
               required
             />
           </label>
 
-          <label style={{ marginRight: 12 }}>
+          <label>
             Columns:
             <input
               type="number"
@@ -108,7 +115,6 @@ function App() {
               max={50}
               value={cols}
               onChange={(e) => setCols(Number(e.target.value) || 10)}
-              style={{ width: 60, marginLeft: 6 }}
               required
             />
           </label>
@@ -118,44 +124,43 @@ function App() {
           </button>
         </form>
 
-        <div style={{ marginTop: "10px", marginBottom: "18px" }}>
+        {/* --- Utility Buttons --- */}
+        <div style={{ marginBottom: "1rem" }}>
           <button onClick={saveDungeon} disabled={!dungeonData.length}>
             Save Dungeon
           </button>
-          <button onClick={loadDungeon} style={{ marginLeft: "10px" }}>
-            Load Dungeon
-          </button>
-
+          <button onClick={loadDungeon}>Load Dungeon</button>
           <button
             onClick={() => setShowAiInfo((s) => !s)}
-            style={{ marginLeft: "12px" }}
             disabled={!aiInfo}
           >
             {showAiInfo ? "Hide AI Info" : "Show AI Info"}
           </button>
         </div>
 
+        {/* --- Dungeon Preview --- */}
         <div style={{ position: "relative", width: "100%" }}>
-          <DungeonPreview dungeonData={dungeonData} onTileClick={handleTileClick} />
+          <DungeonPreview
+            dungeonData={dungeonData}
+            onTileClick={handleTileClick}
+          />
 
-          {/* Legend and Controls */}
+          {/* --- Controls Panel --- */}
           <div
             style={{
               position: "absolute",
               top: 20,
               left: 20,
-              background: "rgba(10,10,20,0.9)",
-              color: "#f0e6d2",
+              background: "rgba(30,30,30,0.95)",
+              color: "#f0f0f0",
               padding: "12px",
               borderRadius: "8px",
               fontSize: "14px",
               maxWidth: "300px",
-              fontFamily: "fantasy",
-              lineHeight: 1.4,
-              border: "2px solid #8b5e3c",
+              border: "1px solid #8b6f4e",
             }}
           >
-            <h4 style={{ margin: "0 0 6px 0", color: "#f3c88e" }}>Controls</h4>
+            <h4 style={{ margin: "0 0 6px 0", color: "#e4b86f" }}>Controls</h4>
             <ul style={{ paddingLeft: "1em", marginTop: 4 }}>
               <li>Left-click + drag: Rotate camera</li>
               <li>Right-click + drag: Pan view</li>
@@ -164,119 +169,66 @@ function App() {
               <li>Right-click tile: Clear</li>
             </ul>
 
-            <h4 style={{ marginTop: 8, color: "#f3c88e" }}>Legend</h4>
-            <ul style={{ paddingLeft: "1em", marginTop: 6, listStyle: "none" }}>
-              <li>
-                <span
-                  style={{
-                    background: "#00000000",
-                    width: 15,
-                    height: 15,
-                    display: "inline-block",
-                    marginRight: 8,
-                    border: "1px solid #555",
-                  }}
-                />
-                Empty
-              </li>
-              <li>
-                <span
-                  style={{
-                    background: "#001f3f",
-                    width: 15,
-                    height: 15,
-                    display: "inline-block",
-                    marginRight: 8,
-                  }}
-                />
-                Room (R)
-              </li>
-              <li>
-                <span
-                  style={{
-                    background: "#9e2a2b",
-                    width: 15,
-                    height: 15,
-                    display: "inline-block",
-                    marginRight: 8,
-                  }}
-                />
-                Trap (T)
-              </li>
-              <li>
-                <span
-                  style={{
-                    background: "#ffa500",
-                    width: 15,
-                    height: 15,
-                    display: "inline-block",
-                    marginRight: 8,
-                  }}
-                />
-                Boss (B)
-              </li>
-              <li>
-                <span
-                  style={{
-                    background: "#4b0082",
-                    width: 15,
-                    height: 15,
-                    display: "inline-block",
-                    marginRight: 8,
-                  }}
-                />
-                Door (D)
-              </li>
-              <li>
-                <span
-                  style={{
-                    background: "#555555",
-                    width: 15,
-                    height: 15,
-                    display: "inline-block",
-                    marginRight: 8,
-                  }}
-                />
-                Hallway (H)
-              </li>
+            <h4 style={{ marginTop: 8, color: "#e4b86f" }}>Legend</h4>
+            <ul style={{ paddingLeft: "1em", listStyle: "none" }}>
+              {[
+                ["#00000000", "Empty"],
+                ["#001f3f", "Room (R)"],
+                ["#9e2a2b", "Trap (T)"],
+                ["#ffa500", "Boss (B)"],
+                ["#4b0082", "Door (D)"],
+                ["#555555", "Hallway (H)"],
+              ].map(([color, label], i) => (
+                <li key={i}>
+                  <span
+                    style={{
+                      background: color,
+                      width: 15,
+                      height: 15,
+                      display: "inline-block",
+                      marginRight: 8,
+                      border: "1px solid #555",
+                    }}
+                  />
+                  {label}
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* AI Debug Panel */}
+          {/* --- AI Info Panel --- */}
           {showAiInfo && aiInfo && (
             <div
               style={{
                 position: "absolute",
                 top: 20,
                 right: 20,
-                background: "rgba(10,10,20,0.9)",
-                color: "#f0e6d2",
+                background: "rgba(30,30,30,0.95)",
+                color: "#f0f0f0",
                 padding: "12px",
                 borderRadius: "8px",
                 fontSize: "13px",
                 width: 320,
                 maxHeight: "60vh",
                 overflowY: "auto",
-                textAlign: "left",
-                fontFamily: "fantasy",
-                lineHeight: 1.4,
-                border: "2px solid #8b5e3c",
+                border: "1px solid #8b6f4e",
               }}
             >
-              <h3 style={{ marginTop: 0, color: "#f3c88e" }}>AI Debug Info</h3>
+              <h3 style={{ marginTop: 0, color: "#e4b86f" }}>AI Debug Info</h3>
               <p style={{ margin: "6px 0" }}>
                 <strong>Entropy:</strong>{" "}
                 {typeof aiInfo.entropy_estimate !== "undefined"
                   ? Number(aiInfo.entropy_estimate).toFixed(4)
                   : "N/A"}
               </p>
+
               {aiInfo.input_noise_sample && (
                 <div style={{ marginTop: 6 }}>
                   <strong>Noise sample (first 10):</strong>
                   <pre
                     style={{
-                      background: "#021205",
-                      color: "#7fffb3",
+                      background: "#111",
+                      color: "#90ffb0",
                       padding: 8,
                       borderRadius: 6,
                       fontSize: 12,
@@ -287,6 +239,7 @@ function App() {
                   </pre>
                 </div>
               )}
+
               {aiInfo.model && (
                 <p style={{ marginTop: 6 }}>
                   <strong>Model:</strong> {aiInfo.model}
