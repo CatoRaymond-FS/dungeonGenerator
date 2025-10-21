@@ -1,12 +1,11 @@
 #!/bin/sh
-# --------------------------
 # Ensure script is executable: chmod +x start.sh
-# --------------------------
 
-# Install Python3 and pip if not already available
+# Update and install Python3 and pip if not available
 if ! command -v python3 >/dev/null 2>&1; then
     echo "Installing Python3..."
-    apk add --no-cache python3 py3-pip  # for Alpine-based containers
+    apt-get update
+    apt-get install -y python3 python3-pip
 fi
 
 # Navigate to backend folder
