@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/dungeonGenerator/static/css/main.e9c5ed67.css",
+    "main.js": "/dungeonGenerator/static/js/main.fa0c91ff.js",
+    "index.html": "/dungeonGenerator/index.html",
+    "main.e9c5ed67.css.map": "/dungeonGenerator/static/css/main.e9c5ed67.css.map",
+    "main.fa0c91ff.js.map": "/dungeonGenerator/static/js/main.fa0c91ff.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e9c5ed67.css",
+    "static/js/main.fa0c91ff.js"
+  ]
+}
