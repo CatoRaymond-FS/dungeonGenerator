@@ -35,8 +35,9 @@ function App() {
     setAiInfo(null);
 
     const ws = new WebSocket(
-      `ws://127.0.0.1:8000/ws/generate_dungeon?rows=${rows}&cols=${cols}`
-    );
+  `wss://dungeongenerator-production.up.railway.app/ws/generate_dungeon?rows=${rows}&cols=${cols}`
+);
+
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
