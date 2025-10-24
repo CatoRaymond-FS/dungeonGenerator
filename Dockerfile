@@ -12,12 +12,11 @@ WORKDIR /app
 
 # Copy your backend code into the container
 COPY frontend/dungeon/src/backend ./backend
-
-# Copy your requirements.txt
 COPY frontend/dungeon/src/backend/requirements.txt ./backend/requirements.txt
 
-# Upgrade pip and install dependencies
+# Upgrade pip and install dependencies including uvicorn[standard] for WebSockets
 RUN pip install --upgrade pip
+RUN pip install "uvicorn[standard]"
 RUN pip install -r backend/requirements.txt
 
 # Expose the port for FastAPI
@@ -26,5 +25,5 @@ EXPOSE 8000
 # Set working directory to backend
 WORKDIR /app/backend
 
-# Start the FastAPI app with proper flags for Railway WebSocket support
+# Start the FastAPI app with proxy headers (needed for Railway WebSocket support)
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
