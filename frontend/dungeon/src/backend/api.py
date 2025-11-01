@@ -6,6 +6,7 @@ import json
 import asyncio
 from collections import Counter
 from math import log2
+from tensorflow.keras.models import load_model
 
 app = FastAPI()
 
@@ -23,7 +24,8 @@ app.add_middleware(
 # --------------------------
 # Tile types
 # --------------------------
-TILE_TYPES = [' ', 'R', 'T', 'B', 'D', 'H']  # removed 'W'
+TILE_TYPES = [' ', 'R', 'T', 'B', 'D', 'H']  # corresponds to indices 0-5
+tile_map = {i: t for i, t in enumerate(TILE_TYPES)}
 
 SAVE_DIR = "saved_dungeons"
 os.makedirs(SAVE_DIR, exist_ok=True)
@@ -37,39 +39,35 @@ def calculate_entropy(flat_grid):
     entropy = -sum((count / total) * log2(count / total) for count in counts.values() if count > 0)
     return entropy
 
-def generate_connected_dungeon(rows=10, cols=10):
-    dungeon = [[' ' for _ in range(cols)] for _ in range(rows)]
+# --------------------------
+# Load GAN generator
+# --------------------------
+GENERATOR_PATH = "dungeon_generator_checkpoint.h5"
+if os.path.exists(GENERATOR_PATH):
+    generator = load_model(GENERATOR_PATH)
+    print("✅ Loaded GAN generator")
+else:
+    raise RuntimeError(f"Generator model not found at {GENERATOR_PATH}")
 
-    def carve_path(x, y, visited):
-        visited.add((x, y))
-        dungeon[y][x] = 'R' if np.random.rand() < 0.7 else 'H'
-        directions = [(0,1),(1,0),(0,-1),(-1,0)]
-        np.random.shuffle(directions)
-        for dx, dy in directions:
-            nx, ny = x+dx, y+dy
-            if 0 <= nx < cols and 0 <= ny < rows and (nx, ny) not in visited:
-                dungeon[ny][nx] = 'H'
-                carve_path(nx, ny, visited)
-
-    carve_path(0, 0, set())
-
-    # Random doors, traps, boss
-    for _ in range(max(1, rows*cols // 20)):
-        x, y = np.random.randint(0, cols), np.random.randint(0, rows)
-        dungeon[y][x] = np.random.choice(['D','T','B'], p=[0.5,0.4,0.1])
-
+def generate_ai_dungeon():
+    """Generate a 10x10 dungeon using the trained GAN"""
+    noise = np.random.normal(0,1,(1,100))  # matches noise_dim
+    pred = generator.predict(noise)[0,...,0]  # shape (10,10)
+    # convert output 0-1 to 0-5 integer tile indices
+    pred_int = np.clip((pred*6).astype(int), 0, 5)
+    dungeon = [[tile_map[val] for val in row] for row in pred_int]
     return dungeon
 
 # --------------------------
 # REST Endpoints
 # --------------------------
 @app.get("/generate_dungeon")
-def get_dungeon(rows: int = 10, cols: int = 10):
+def get_dungeon():
     try:
-        dungeon = generate_connected_dungeon(rows, cols)
+        dungeon = generate_ai_dungeon()
         flat_grid = [cell for row in dungeon for cell in row]
         entropy = calculate_entropy(flat_grid)
-        return {"dungeon": dungeon, "entropy": entropy}
+        return {"dungeon": dungeon, "entropy": entropy, "model": "GAN"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -94,12 +92,12 @@ def load_dungeon(dungeon_id: int):
 # WebSocket Endpoint for live generation
 # --------------------------
 @app.websocket("/ws/generate_dungeon")
-async def websocket_generate(websocket: WebSocket, rows: int = Query(10), cols: int = Query(10)):
+async def websocket_generate(websocket: WebSocket):
     await websocket.accept()
     try:
         total_steps = 5
         for step in range(total_steps):
-            dungeon = generate_connected_dungeon(rows, cols)
+            dungeon = generate_ai_dungeon()
             flat_grid = [cell for row in dungeon for cell in row]
             entropy = calculate_entropy(flat_grid)
             noise_sample = np.random.normal(0,1,10).tolist()
@@ -109,7 +107,7 @@ async def websocket_generate(websocket: WebSocket, rows: int = Query(10), cols: 
                 "total_steps": total_steps,
                 "dungeon": dungeon,
                 "ai_info": {
-                    "model": "procedural_connected",
+                    "model": "GAN",
                     "entropy_estimate": entropy,
                     "input_noise_sample": noise_sample
                 }
