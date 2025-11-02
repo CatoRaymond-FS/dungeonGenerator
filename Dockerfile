@@ -24,12 +24,15 @@ WORKDIR /app
 COPY frontend/dungeon/src/backend ./backend
 COPY frontend/dungeon/src/backend/requirements.txt ./backend/requirements.txt
 
+# ✅ NEW: Copy your training dataset into the container
+COPY frontend/dungeon/src/training_dataset ./training_dataset
+
 # --------------------------
 # Upgrade pip and install dependencies
 # --------------------------
 RUN pip install --upgrade pip setuptools wheel
 
-# Install TensorFlow CPU version (smaller than full GPU) + FastAPI dependencies
+# Install TensorFlow CPU + FastAPI dependencies
 RUN pip install "tensorflow-cpu>=2.15.0" uvicorn[standard] fastapi numpy pandas
 
 # Install other Python dependencies from requirements.txt
