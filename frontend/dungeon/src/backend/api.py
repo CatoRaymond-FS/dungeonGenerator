@@ -69,9 +69,16 @@ def resize_dungeon(dungeon_tensor, target_rows, target_cols):
     return tf.squeeze(dungeon_tensor, 0).numpy().tolist()
 
 # --------------------------
-# Load synthetic dataset (optional, for training GAN)
+# Load synthetic dataset (safe path handling)
 # --------------------------
-df = pd.read_csv("../training_dataset/synthetic_dungeon_dataset.csv")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(BASE_DIR, "../training_dataset/synthetic_dungeon_dataset.csv")
+
+if not os.path.exists(DATA_PATH):
+    raise FileNotFoundError(f"Training dataset not found at {DATA_PATH}")
+
+df = pd.read_csv(DATA_PATH)
+
 tile_map = {" ": 0, "R": 1, "T": 2, "B": 3, "D": 4, "H": 5}
 numeric_data = df.applymap(lambda x: tile_map.get(x, 0)).values.astype("float32")
 dungeon_data = numeric_data.reshape((-1, 10, 10, 1)) / 6.0  # normalized
@@ -142,19 +149,16 @@ async def websocket_generate(websocket: WebSocket, rows: int = Query(10), cols: 
     try:
         total_steps = 5
         for step in range(total_steps):
-            # Generate GAN dungeon
             noise = np.random.normal(0, 1, (1, 100))
-            dungeon_tensor = generator.predict(noise)[0, :, :, 0]  # get single sample
+            dungeon_tensor = generator.predict(noise)[0, :, :, 0]
 
-            # Resize to requested rows x cols
+            # Resize and discretize
             dungeon_resized = resize_dungeon(dungeon_tensor, rows, cols)
-
-            # Convert continuous output to discrete tiles
             dungeon_discrete = []
             for row in dungeon_resized:
                 dungeon_row = []
                 for val in row:
-                    idx = min(int(val * len(TILE_TYPES)), len(TILE_TYPES)-1)
+                    idx = min(int(val * len(TILE_TYPES)), len(TILE_TYPES) - 1)
                     dungeon_row.append(TILE_TYPES[idx])
                 dungeon_discrete.append(dungeon_row)
 
