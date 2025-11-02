@@ -1,18 +1,21 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
-import numpy as np
 import os
 import json
 import asyncio
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+from tensorflow.keras.models import load_model
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from collections import Counter
 from math import log2
-from tensorflow.keras.models import load_model
 
+# --------------------------
+# FastAPI setup
+# --------------------------
 app = FastAPI()
-
-# --------------------------
-# CORS config
-# --------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,9 +27,7 @@ app.add_middleware(
 # --------------------------
 # Tile types
 # --------------------------
-TILE_TYPES = [' ', 'R', 'T', 'B', 'D', 'H']  # corresponds to indices 0-5
-tile_map = {i: t for i, t in enumerate(TILE_TYPES)}
-
+TILE_TYPES = [' ', 'R', 'T', 'B', 'D', 'H']  # removed 'W'
 SAVE_DIR = "saved_dungeons"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
@@ -39,35 +40,79 @@ def calculate_entropy(flat_grid):
     entropy = -sum((count / total) * log2(count / total) for count in counts.values() if count > 0)
     return entropy
 
+def generate_connected_dungeon(rows=10, cols=10):
+    dungeon = [[' ' for _ in range(cols)] for _ in range(rows)]
+
+    def carve_path(x, y, visited):
+        visited.add((x, y))
+        dungeon[y][x] = 'R' if np.random.rand() < 0.7 else 'H'
+        directions = [(0,1),(1,0),(0,-1),(-1,0)]
+        np.random.shuffle(directions)
+        for dx, dy in directions:
+            nx, ny = x+dx, y+dy
+            if 0 <= nx < cols and 0 <= ny < rows and (nx, ny) not in visited:
+                dungeon[ny][nx] = 'H'
+                carve_path(nx, ny, visited)
+
+    carve_path(0, 0, set())
+
+    # Random doors, traps, boss
+    for _ in range(max(1, rows*cols // 20)):
+        x, y = np.random.randint(0, cols), np.random.randint(0, rows)
+        dungeon[y][x] = np.random.choice(['D','T','B'], p=[0.5,0.4,0.1])
+
+    return dungeon
+
+def resize_dungeon(dungeon_tensor, target_rows, target_cols):
+    dungeon_tensor = tf.expand_dims(dungeon_tensor, 0)  # add batch dim
+    dungeon_tensor = tf.image.resize(dungeon_tensor, (target_rows, target_cols), method='nearest')
+    return tf.squeeze(dungeon_tensor, 0).numpy().tolist()
+
 # --------------------------
-# Load GAN generator
+# Load synthetic dataset (optional, for training GAN)
 # --------------------------
-GENERATOR_PATH = "dungeon_generator_checkpoint.h5"
-if os.path.exists(GENERATOR_PATH):
-    generator = load_model(GENERATOR_PATH)
+df = pd.read_csv("../training_dataset/synthetic_dungeon_dataset.csv")
+tile_map = {" ": 0, "R": 1, "T": 2, "B": 3, "D": 4, "H": 5}
+numeric_data = df.applymap(lambda x: tile_map.get(x, 0)).values.astype("float32")
+dungeon_data = numeric_data.reshape((-1, 10, 10, 1)) / 6.0  # normalized
+
+# --------------------------
+# Build flexible GAN generator
+# --------------------------
+def build_generator_conv(noise_dim=100, channels=1):
+    noise_input = layers.Input(shape=(noise_dim,))
+    x = layers.Dense(128*4*4, activation="relu")(noise_input)
+    x = layers.Reshape((4, 4, 128))(x)
+
+    # Upsample layers
+    x = layers.Conv2DTranspose(128, 4, strides=2, padding='same', activation="relu")(x)  # 8x8
+    x = layers.Conv2DTranspose(64, 4, strides=2, padding='same', activation="relu")(x)   # 16x16
+    x = layers.Conv2DTranspose(32, 4, strides=2, padding='same', activation="relu")(x)   # 32x32
+
+    output = layers.Conv2D(channels, 3, padding='same', activation="sigmoid")(x)
+    return keras.Model(noise_input, output)
+
+# --------------------------
+# Load or build GAN
+# --------------------------
+generator_path = "dungeon_generator_checkpoint.h5"
+if os.path.exists(generator_path):
+    generator = load_model(generator_path, compile=False)
     print("✅ Loaded GAN generator")
 else:
-    raise RuntimeError(f"Generator model not found at {GENERATOR_PATH}")
-
-def generate_ai_dungeon():
-    """Generate a 10x10 dungeon using the trained GAN"""
-    noise = np.random.normal(0,1,(1,100))  # matches noise_dim
-    pred = generator.predict(noise)[0,...,0]  # shape (10,10)
-    # convert output 0-1 to 0-5 integer tile indices
-    pred_int = np.clip((pred*6).astype(int), 0, 5)
-    dungeon = [[tile_map[val] for val in row] for row in pred_int]
-    return dungeon
+    generator = build_generator_conv()
+    print("⚠️ No generator checkpoint, starting from scratch")
 
 # --------------------------
 # REST Endpoints
 # --------------------------
 @app.get("/generate_dungeon")
-def get_dungeon():
+def get_dungeon(rows: int = 10, cols: int = 10):
     try:
-        dungeon = generate_ai_dungeon()
+        dungeon = generate_connected_dungeon(rows, cols)
         flat_grid = [cell for row in dungeon for cell in row]
         entropy = calculate_entropy(flat_grid)
-        return {"dungeon": dungeon, "entropy": entropy, "model": "GAN"}
+        return {"dungeon": dungeon, "entropy": entropy}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -89,45 +134,43 @@ def load_dungeon(dungeon_id: int):
     return {"dungeon": dungeon}
 
 # --------------------------
-# WebSocket Endpoint for live generation
+# WebSocket for live GAN generation
 # --------------------------
 @app.websocket("/ws/generate_dungeon")
 async def websocket_generate(websocket: WebSocket, rows: int = Query(10), cols: int = Query(10)):
     await websocket.accept()
     try:
         total_steps = 5
-        tile_map_rev = {0:' ', 1:'R', 2:'T', 3:'B', 4:'D', 5:'H'}
-
         for step in range(total_steps):
-            # --- Generate dungeon using GAN ---
-            noise = np.random.normal(0, 1, (1, 100))  # batch of 1
-            generated = generator.predict(noise)      # shape (1, 10, 10, 1)
-            
-            # Scale output to integer tile indices 0-5
-            dungeon_int = np.round(generated[0, :rows, :cols, 0] * 5).astype(int)
-            
-            # Map integers to tile letters
-            dungeon = [[tile_map_rev[int(val)] for val in row] for row in dungeon_int]
+            # Generate GAN dungeon
+            noise = np.random.normal(0, 1, (1, 100))
+            dungeon_tensor = generator.predict(noise)[0, :, :, 0]  # get single sample
 
-            # Calculate entropy
-            flat_grid = [cell for row in dungeon for cell in row]
+            # Resize to requested rows x cols
+            dungeon_resized = resize_dungeon(dungeon_tensor, rows, cols)
+
+            # Convert continuous output to discrete tiles
+            dungeon_discrete = []
+            for row in dungeon_resized:
+                dungeon_row = []
+                for val in row:
+                    idx = min(int(val * len(TILE_TYPES)), len(TILE_TYPES)-1)
+                    dungeon_row.append(TILE_TYPES[idx])
+                dungeon_discrete.append(dungeon_row)
+
+            flat_grid = [cell for row in dungeon_discrete for cell in row]
             entropy = calculate_entropy(flat_grid)
 
-            # Sample noise info for AI debug panel
-            noise_sample = noise[0, :10].tolist()
-
-            # Send JSON to client
             await websocket.send_json({
                 "step": step + 1,
                 "total_steps": total_steps,
-                "dungeon": dungeon,
+                "dungeon": dungeon_discrete,
                 "ai_info": {
-                    "model": "GAN_generator",
+                    "model": "gan_flexible",
                     "entropy_estimate": entropy,
-                    "input_noise_sample": noise_sample
+                    "input_noise_sample": noise[0].tolist()
                 }
             })
-
             await asyncio.sleep(0.5)
 
         await websocket.send_json({"done": True})
