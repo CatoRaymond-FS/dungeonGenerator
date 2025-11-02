@@ -92,26 +92,42 @@ def load_dungeon(dungeon_id: int):
 # WebSocket Endpoint for live generation
 # --------------------------
 @app.websocket("/ws/generate_dungeon")
-async def websocket_generate(websocket: WebSocket):
+async def websocket_generate(websocket: WebSocket, rows: int = Query(10), cols: int = Query(10)):
     await websocket.accept()
     try:
         total_steps = 5
+        tile_map_rev = {0:' ', 1:'R', 2:'T', 3:'B', 4:'D', 5:'H'}
+
         for step in range(total_steps):
-            dungeon = generate_ai_dungeon()
+            # --- Generate dungeon using GAN ---
+            noise = np.random.normal(0, 1, (1, 100))  # batch of 1
+            generated = generator.predict(noise)      # shape (1, 10, 10, 1)
+            
+            # Scale output to integer tile indices 0-5
+            dungeon_int = np.round(generated[0, :rows, :cols, 0] * 5).astype(int)
+            
+            # Map integers to tile letters
+            dungeon = [[tile_map_rev[int(val)] for val in row] for row in dungeon_int]
+
+            # Calculate entropy
             flat_grid = [cell for row in dungeon for cell in row]
             entropy = calculate_entropy(flat_grid)
-            noise_sample = np.random.normal(0,1,10).tolist()
 
+            # Sample noise info for AI debug panel
+            noise_sample = noise[0, :10].tolist()
+
+            # Send JSON to client
             await websocket.send_json({
                 "step": step + 1,
                 "total_steps": total_steps,
                 "dungeon": dungeon,
                 "ai_info": {
-                    "model": "GAN",
+                    "model": "GAN_generator",
                     "entropy_estimate": entropy,
                     "input_noise_sample": noise_sample
                 }
             })
+
             await asyncio.sleep(0.5)
 
         await websocket.send_json({"done": True})
