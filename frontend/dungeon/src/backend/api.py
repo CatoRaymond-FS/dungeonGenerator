@@ -132,27 +132,29 @@ def load_dungeon(dungeon_id: int):
     return {"dungeon": dungeon}
 
 # --------------------------
-# WebSocket: live AI generation (safe flexible fix)
+# WebSocket: live AI generation (fixed)
 # --------------------------
 @app.websocket("/ws/generate_dungeon")
 async def websocket_generate(websocket: WebSocket, rows: int = Query(10), cols: int = Query(10)):
     await websocket.accept()
     try:
-        total_steps = 5
+        total_steps = 5  # number of incremental updates
         for step in range(total_steps):
-            # ✅ Match training batch size (avoid squeeze errors)
-            noise = np.random.normal(0, 1, (10, 100))
-            generated = generator.predict(noise)
+            # --- Generate batch of dungeons ---
+            noise = np.random.normal(0, 1, (10, 100))  # batch of 10
+            generated = generator.predict(noise)  # shape: (10, height, width, channels)
 
-            # ✅ Use only the first dungeon from batch
-            dungeon_tensor = generated[0]
-            if len(dungeon_tensor.shape) == 3:
+            # --- Safely pick first dungeon from batch ---
+            dungeon_tensor = generated[0]  # shape: (height, width, channels)
+
+            # --- Flatten channels if needed ---
+            if dungeon_tensor.shape[-1] == 1:
                 dungeon_tensor = dungeon_tensor[:, :, 0]
 
-            # ✅ Resize to user-requested dimensions
-            dungeon_resized = resize_dungeon(dungeon_tensor, rows, cols)
+            # --- Resize to requested rows x cols ---
+            dungeon_resized = resize_dungeon(dungeon_tensor, rows, cols)  # returns list
 
-            # ✅ Convert float outputs to discrete dungeon symbols
+            # --- Convert float outputs to discrete tiles ---
             dungeon_discrete = []
             for row in dungeon_resized:
                 dungeon_row = []
@@ -161,11 +163,11 @@ async def websocket_generate(websocket: WebSocket, rows: int = Query(10), cols: 
                     dungeon_row.append(TILE_TYPES[idx])
                 dungeon_discrete.append(dungeon_row)
 
-            # ✅ Calculate entropy for live AI feedback
+            # --- Calculate entropy for AI info ---
             flat_grid = [cell for row in dungeon_discrete for cell in row]
             entropy = calculate_entropy(flat_grid)
 
-            # ✅ Send JSON update over WebSocket
+            # --- Send JSON update to frontend ---
             await websocket.send_json({
                 "step": step + 1,
                 "total_steps": total_steps,
@@ -173,11 +175,13 @@ async def websocket_generate(websocket: WebSocket, rows: int = Query(10), cols: 
                 "ai_info": {
                     "model": "gan_flexible_safe",
                     "entropy_estimate": entropy,
-                    "input_noise_sample": noise[0].tolist()
+                    "input_noise_sample": noise[0].tolist()  # first noise vector
                 }
             })
-            await asyncio.sleep(0.5)
 
+            await asyncio.sleep(0.5)  # slight delay to simulate progressive generation
+
+        # --- Signal completion ---
         await websocket.send_json({"done": True})
 
     except WebSocketDisconnect:
