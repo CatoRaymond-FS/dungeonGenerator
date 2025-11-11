@@ -27,7 +27,7 @@ app.add_middleware(
 # --------------------------
 # Tile types
 # --------------------------
-TILE_TYPES = [' ', 'R', 'T', 'B', 'D', 'H']  # removed 'W'
+TILE_TYPES = [' ', 'R', 'T', 'B', 'D', 'H']
 SAVE_DIR = "saved_dungeons"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
@@ -56,7 +56,6 @@ def generate_connected_dungeon(rows=10, cols=10):
 
     carve_path(0, 0, set())
 
-    # Random doors, traps, boss
     for _ in range(max(1, rows*cols // 20)):
         x, y = np.random.randint(0, cols), np.random.randint(0, rows)
         dungeon[y][x] = np.random.choice(['D','T','B'], p=[0.5,0.4,0.1])
@@ -64,24 +63,17 @@ def generate_connected_dungeon(rows=10, cols=10):
     return dungeon
 
 def resize_dungeon(dungeon_tensor, target_rows, target_cols):
-    dungeon_tensor = tf.expand_dims(dungeon_tensor, 0)  # add batch dim
+    dungeon_tensor = tf.expand_dims(dungeon_tensor, 0)
     dungeon_tensor = tf.image.resize(dungeon_tensor, (target_rows, target_cols), method='nearest')
     return tf.squeeze(dungeon_tensor, 0).numpy().tolist()
 
 # --------------------------
-# Load synthetic dataset (safe path handling)
+# Load synthetic dataset (optional training reference)
 # --------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(BASE_DIR, "../training_dataset/synthetic_dungeon_dataset.csv")
-
-if not os.path.exists(DATA_PATH):
-    raise FileNotFoundError(f"Training dataset not found at {DATA_PATH}")
-
-df = pd.read_csv(DATA_PATH)
-
+df = pd.read_csv("../training_dataset/synthetic_dungeon_dataset.csv")
 tile_map = {" ": 0, "R": 1, "T": 2, "B": 3, "D": 4, "H": 5}
-numeric_data = df.applymap(lambda x: tile_map.get(x, 0)).values.astype("float32")
-dungeon_data = numeric_data.reshape((-1, 10, 10, 1)) / 6.0  # normalized
+numeric_data = df.map(lambda x: tile_map.get(x, 0)).values.astype("float32")
+dungeon_data = numeric_data.reshape((-1, 10, 10, 1)) / 6.0
 
 # --------------------------
 # Build flexible GAN generator
@@ -91,16 +83,15 @@ def build_generator_conv(noise_dim=100, channels=1):
     x = layers.Dense(128*4*4, activation="relu")(noise_input)
     x = layers.Reshape((4, 4, 128))(x)
 
-    # Upsample layers
-    x = layers.Conv2DTranspose(128, 4, strides=2, padding='same', activation="relu")(x)  # 8x8
-    x = layers.Conv2DTranspose(64, 4, strides=2, padding='same', activation="relu")(x)   # 16x16
-    x = layers.Conv2DTranspose(32, 4, strides=2, padding='same', activation="relu")(x)   # 32x32
+    x = layers.Conv2DTranspose(128, 4, strides=2, padding='same', activation="relu")(x)
+    x = layers.Conv2DTranspose(64, 4, strides=2, padding='same', activation="relu")(x)
+    x = layers.Conv2DTranspose(32, 4, strides=2, padding='same', activation="relu")(x)
 
     output = layers.Conv2D(channels, 3, padding='same', activation="sigmoid")(x)
     return keras.Model(noise_input, output)
 
 # --------------------------
-# Load or build GAN
+# Load or initialize GAN
 # --------------------------
 generator_path = "dungeon_generator_checkpoint.h5"
 if os.path.exists(generator_path):
@@ -108,10 +99,10 @@ if os.path.exists(generator_path):
     print("✅ Loaded GAN generator")
 else:
     generator = build_generator_conv()
-    print("⚠️ No generator checkpoint, starting from scratch")
+    print("⚠️ No generator checkpoint found — starting new model")
 
 # --------------------------
-# REST Endpoints
+# REST endpoints
 # --------------------------
 @app.get("/generate_dungeon")
 def get_dungeon(rows: int = 10, cols: int = 10):
@@ -141,7 +132,7 @@ def load_dungeon(dungeon_id: int):
     return {"dungeon": dungeon}
 
 # --------------------------
-# WebSocket for live GAN generation
+# WebSocket: live AI generation
 # --------------------------
 @app.websocket("/ws/generate_dungeon")
 async def websocket_generate(websocket: WebSocket, rows: int = Query(10), cols: int = Query(10)):
@@ -150,15 +141,23 @@ async def websocket_generate(websocket: WebSocket, rows: int = Query(10), cols: 
         total_steps = 5
         for step in range(total_steps):
             noise = np.random.normal(0, 1, (1, 100))
-            dungeon_tensor = generator.predict(noise)[0, :, :, 0]
+            generated = generator.predict(noise)
 
-            # Resize and discretize
+            # ✅ Flexible shape handling
+            if len(generated.shape) == 4:
+                dungeon_tensor = generated[0, :, :, 0]
+            elif len(generated.shape) == 3:
+                dungeon_tensor = generated[:, :, 0]
+            else:
+                raise ValueError(f"Unexpected generator output shape: {generated.shape}")
+
             dungeon_resized = resize_dungeon(dungeon_tensor, rows, cols)
+
             dungeon_discrete = []
             for row in dungeon_resized:
                 dungeon_row = []
                 for val in row:
-                    idx = min(int(val * len(TILE_TYPES)), len(TILE_TYPES) - 1)
+                    idx = min(int(val * len(TILE_TYPES)), len(TILE_TYPES)-1)
                     dungeon_row.append(TILE_TYPES[idx])
                 dungeon_discrete.append(dungeon_row)
 
