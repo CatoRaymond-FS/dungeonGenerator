@@ -132,38 +132,52 @@ def load_dungeon(dungeon_id: int):
     return {"dungeon": dungeon}
 
 # --------------------------
-# WebSocket: live AI generation
+# WebSocket: live AI generation (fixed + stable)
 # --------------------------
 @app.websocket("/ws/generate_dungeon")
 async def websocket_generate(websocket: WebSocket, rows: int = Query(10), cols: int = Query(10)):
     await websocket.accept()
     try:
         total_steps = 5
-        for step in range(total_steps):
-            noise = np.random.normal(0, 1, (1, 100))
-            generated = generator.predict(noise)
+        noise_dim = 100  # match your GAN latent size
 
-            # ✅ Flexible shape handling
-            if len(generated.shape) == 4:
+        for step in range(total_steps):
+            # Always batch size 1 to prevent squeeze errors
+            noise = np.random.normal(0, 1, (1, noise_dim))
+            generated = generator.predict(noise, verbose=0)
+
+            # ✅ Handle output shapes safely
+            if len(generated.shape) == 4:  # (1, h, w, c)
                 dungeon_tensor = generated[0, :, :, 0]
-            elif len(generated.shape) == 3:
+            elif len(generated.shape) == 3:  # (h, w, c)
                 dungeon_tensor = generated[:, :, 0]
+            elif len(generated.shape) == 2:  # (h, w)
+                dungeon_tensor = generated
             else:
                 raise ValueError(f"Unexpected generator output shape: {generated.shape}")
 
+            # Optional normalization if your model outputs -1..1
+            dungeon_tensor = (dungeon_tensor - dungeon_tensor.min()) / (
+                dungeon_tensor.max() - dungeon_tensor.min() + 1e-8
+            )
+
+            # Resize to target dungeon grid
             dungeon_resized = resize_dungeon(dungeon_tensor, rows, cols)
 
+            # Convert float map to discrete tile symbols
             dungeon_discrete = []
             for row in dungeon_resized:
                 dungeon_row = []
                 for val in row:
-                    idx = min(int(val * len(TILE_TYPES)), len(TILE_TYPES)-1)
+                    idx = min(int(val * len(TILE_TYPES)), len(TILE_TYPES) - 1)
                     dungeon_row.append(TILE_TYPES[idx])
                 dungeon_discrete.append(dungeon_row)
 
+            # Flatten and measure entropy
             flat_grid = [cell for row in dungeon_discrete for cell in row]
             entropy = calculate_entropy(flat_grid)
 
+            # Stream update to frontend
             await websocket.send_json({
                 "step": step + 1,
                 "total_steps": total_steps,
@@ -174,6 +188,7 @@ async def websocket_generate(websocket: WebSocket, rows: int = Query(10), cols: 
                     "input_noise_sample": noise[0].tolist()
                 }
             })
+
             await asyncio.sleep(0.5)
 
         await websocket.send_json({"done": True})
@@ -181,5 +196,5 @@ async def websocket_generate(websocket: WebSocket, rows: int = Query(10), cols: 
     except WebSocketDisconnect:
         print("Client disconnected")
     except Exception as e:
-        print("WebSocket error:", e)
-        await websocket.close()
+        print("❌ WebSocket error:", e)
+        await websocket.close(code=1011)
